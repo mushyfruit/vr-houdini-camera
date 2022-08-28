@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mainMenu>
+	<menuBar>
+		
+		<subMenu id="ab_labs_menu">
+			<label>AB_Labs</label>
+			<insertBefore>help_menu</insertBefore>
+			
+			<separatorItem />
+			
+		<scriptItem id="first_item">
+			<label>Redshift Importer</label>
+			<scriptCode>
+				<![CDATA[
+import Redshift.RedshiftImporter as RedImport
+from importlib import reload
+reload(RedImport)
+RedImport.print_test()]]></scriptCode>
+		</scriptItem>
+		
+		<scriptItem id="second_item">
+			<label>Socket Test</label>
+			<scriptCode>
+				<![CDATA[
+import main_socket_window as mainWindow
+from importlib import reload
+reload(mainWindow)
+mainWindow.initializeWindow()]]></scriptCode>
+		</scriptItem>
+			
+<separatorItem />
+		
+	<scriptItem id="documentation">
+		<label>Documentation</label>
+		<scriptCode><![CDATA[__import__('webbrowser').open('https://docs.google.com/document/d/1NQo0ebfaM9b5zC59vc1U-XB7bU7ChDouzYqq9lBfLZo/edit?usp=sharing')]]></scriptCode>
+	</scriptItem>
+
+		</subMenu>
+	</menuBar>
+</mainMenu>
