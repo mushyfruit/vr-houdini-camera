@@ -163,7 +163,7 @@ class ABMainWindow(QMainWindow):
 
     def onReceive_press(self):
 
-        if platform.system() == "Windows" || platform.system() == "Linux":
+        if platform.system() == "Windows" or platform.system() == "Linux":
             hou.ui.reloadViewerState(self.ff_type)
             scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
             viewport = scene_viewer.curViewport()
