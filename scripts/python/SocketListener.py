@@ -6,7 +6,8 @@ import hou
 
 SOCKET_PORT = 13290
 HEADERSIZE = 10
-SERVER = socket.gethostbyname(socket.gethostname())
+SERVER = socket.gethostname()
+print(SERVER)
 
 class QSocketMonitor(QThread):
 

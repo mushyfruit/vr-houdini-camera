@@ -19,7 +19,7 @@ if platform.system() == "Windows" or platform.system() == "Linux":
     import ControllerTracker
     import VRTracker
 
-SERVER = "192.168."
+SERVER = "emd206623823lt"
 
 class ABMainWindow(QMainWindow):
     #Singleton pattern
@@ -175,7 +175,7 @@ class ABMainWindow(QMainWindow):
     def server_send_info(self, data):
         SOCKET_PORT = 13290
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((LOCALHOST, SOCKET_PORT))
+        s.connect((SERVER, SOCKET_PORT))
         msg = pickle.dumps(data)
         s.send(msg)
 
