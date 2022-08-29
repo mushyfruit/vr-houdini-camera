@@ -15,11 +15,9 @@ from importlib import reload
 import viewerstate.utils as su
 
 
-try:
+if platform.system() == "Windows" or platform.system() == "Linux":
     import ControllerTracker
     import VRTracker
-except ImportError:
-    pass
 
 class ABMainWindow(QMainWindow):
     #Singleton pattern
