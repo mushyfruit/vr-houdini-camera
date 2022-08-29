@@ -124,6 +124,7 @@ class ABMainWindow(QMainWindow):
             return
 
         #Start QThread Server
+        print(len(SocketListener.QSocketMonitor.Instance))
         if len(SocketListener.QSocketMonitor.Instance) == 0:
             print("starting up server")
             self.server_monitor = SocketListener.QSocketMonitor()
@@ -135,7 +136,7 @@ class ABMainWindow(QMainWindow):
 
         if self.controlledCamera:
             self.camera_actual_status.setText(str(self.controlledCamera) + " receiving input.")
-
+        print(socket.gethostbyname('localhost'))
         self.status_ping()
 
     def onTransmit_press(self):
