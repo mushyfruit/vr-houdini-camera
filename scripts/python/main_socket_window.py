@@ -5,9 +5,6 @@ from PySide2.QtWidgets import QLabel, QWidget,QApplication, QVBoxLayout,QMainWin
 import hou
 import pickle
 import SocketListener
-import ControllerTracker
-import VRTracker
-
 
 import socket
 import sys
@@ -15,9 +12,14 @@ import time
 import platform
 
 from importlib import reload
-
 import viewerstate.utils as su
 
+
+try:
+    import ControllerTracker
+    import VRTracker
+except ImportError:
+    pass
 
 class ABMainWindow(QMainWindow):
     #Singleton pattern
