@@ -138,7 +138,6 @@ class ABMainWindow(QMainWindow):
 
         if self.controlledCamera:
             self.camera_actual_status.setText(str(self.controlledCamera) + " receiving input.")
-        print(socket.gethostbyname('localhost'))
         self.status_ping()
 
     def onTransmit_press(self):
@@ -175,6 +174,7 @@ class ABMainWindow(QMainWindow):
     def server_send_info(self, data):
         SOCKET_PORT = 13290
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print(SERVER)
         s.connect((SERVER, SOCKET_PORT))
         msg = pickle.dumps(data)
         s.send(msg)

@@ -9,12 +9,12 @@ import os
 SOCKET_PORT = 13290
 HEADERSIZE = 10
 
-if platform.system() == "Mac":
-    SERVER = os.popen('ipconfig getifaddr en0').read()
+if platform.system() == "Darwin":
+    process = os.popen('ipconfig getifaddr en0')
+    SERVER = process.read()
+    process.close()
 else:
     SERVER = socket.gethostbyname(socket.gethostname())
-
-print(SERVER)
 
 class QSocketMonitor(QThread):
 
@@ -38,10 +38,10 @@ class QSocketMonitor(QThread):
 
     def run(self):
         #time.sleep(0.025)
-
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind((SERVER, SOCKET_PORT))
+            s.bind((SERVER.strip(), SOCKET_PORT))
+            print(SOCKET_PORT)
 
             while True:
                 s.listen(5)
