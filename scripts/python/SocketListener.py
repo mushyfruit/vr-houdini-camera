@@ -6,8 +6,7 @@ import hou
 
 SOCKET_PORT = 13290
 HEADERSIZE = 10
-SERVER = socket.gethostname()
-LOCALHOST = '127.0.0.1'
+SERVER = socket.gethostbyname(socket.gethostname())
 
 class QSocketMonitor(QThread):
 
@@ -19,6 +18,7 @@ class QSocketMonitor(QThread):
         QThread.__init__(self)
         QSocketMonitor.Instance.append(self)
         self.TotalData=b""
+        print(SERVER)
 
     def __del__(self):
         self.quit()
@@ -33,7 +33,7 @@ class QSocketMonitor(QThread):
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind((LOCALHOST, SOCKET_PORT))
+            s.bind((SERVER, SOCKET_PORT))
 
             while True:
                 s.listen(5)
