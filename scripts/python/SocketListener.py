@@ -3,10 +3,17 @@ import time
 import socket
 import pickle
 import hou
+import platform
+import os
 
 SOCKET_PORT = 13290
 HEADERSIZE = 10
-SERVER = socket.gethostname()
+
+if platform.system() == "Mac":
+    SERVER = os.popen('ipconfig getifaddr en0').read()
+else:
+    SERVER = socket.gethostbyname(socket.gethostname())
+
 print(SERVER)
 
 class QSocketMonitor(QThread):

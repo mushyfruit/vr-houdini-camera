@@ -19,7 +19,7 @@ if platform.system() == "Windows" or platform.system() == "Linux":
     import ControllerTracker
     import VRTracker
 
-SERVER = "emd206623823lt"
+SERVER = "192.168.1.6"
 
 class ABMainWindow(QMainWindow):
     #Singleton pattern
