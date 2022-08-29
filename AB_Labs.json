@@ -1,0 +1,9 @@
+{
+    "path": "$ABLABS",
+    "load_package_once": true,
+    "env": [
+        {
+            "ABLABS": "$HOUDINI_PACKAGE_PATH/AB_Labs"
+        }
+    ]
+}
