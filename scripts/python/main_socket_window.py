@@ -125,7 +125,7 @@ class ABMainWindow(QMainWindow):
 
         #Start QThread Server
         if len(SocketListener.QSocketMonitor.Instance) == 0:
-            print(len(SocketListener.QSocketMonitor.Instance))
+            print("starting up server")
             self.server_monitor = SocketListener.QSocketMonitor()
             self.server_monitor.ButtonCall.connect(self.button_callback)
             self.server_monitor.DataCall.connect(self.parameter_callback)
@@ -145,13 +145,49 @@ class ABMainWindow(QMainWindow):
         for camera in cameras:
             camera_choices.append(camera.name())
 
-        #Select your choice via houdini.ui
+        #Select camera object to transmit.
         selection = hou.ui.selectFromList(camera_choices, exclusive=True, num_visible_rows=len(camera_choices), column_header="Select Camera to Stream")
         if selection:
             cam_op = cameras[selection[0]]
-            cam_op.addParmCallback(self.test_event, ('t', 'r'))
 
-        self.camera_actual_status.setText(str(cam_op) + " streaming position.")
+            #Set callback event on position parameters for camera.
+            cam_op.addParmCallback(self.transmitEvent, ('t', 'r'))
+            self.camera_actual_status.setText(str(cam_op) + " streaming position.")
+
+    def transmitEvent(self, event_type, **kwargs):
+        parm_tuple = kwargs['parm_tuple']
+        parm_data = parm_tuple.eval()
+        parm_name = parm_tuple.name()
+        parm_send = parm_data + (parm_name,)
+        self.server_send_info(parm_send)
+
+    # Server Events
+
+    def status_ping(self):
+        SOCKET_PORT = 13290
+        print("ping")
+        msg = "status_ping"
+        self.server_send_info(msg)
+
+    def server_send_info(self, data):
+        SOCKET_PORT = 13290
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((socket.gethostname(), SOCKET_PORT))
+        msg = pickle.dumps(data)
+        s.send(msg)
+
+    def server_close(self):
+        SOCKET_PORT = 13290
+        msg = "shutdown!"
+        self.server_send_info(msg)
+
+    def closeEvent(self, event):
+        print("server close")
+        if self.server_monitor and self.server_monitor.isRunning():
+            self.server_close()
+
+
+
 
 
     def checkForCamera(self, cam_name):
@@ -162,8 +198,9 @@ class ABMainWindow(QMainWindow):
 
 
     def onReceive_press(self):
-
+        # Can only run on Windows & Linux.
         if platform.system() == "Windows" or platform.system() == "Linux":
+
             hou.ui.reloadViewerState(self.ff_type)
             scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
             viewport = scene_viewer.curViewport()
@@ -181,13 +218,14 @@ class ABMainWindow(QMainWindow):
 
             select_list = ["HMD", "Controllers", "Vive Tracker"]
 
+            # Query the type of VR Object to track.
             selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
 
-            scene_viewer.setCurrentState(self.ff_type)
+            # Change the viewer state if we have a selection
+            if (selec):
+                scene_viewer.setCurrentState(self.ff_type)
 
-            print(selec)
-
-            if (selec[0] == 0):
+            if (selec and selec[0] == 0):
                 if len(VRTracker.QVRMonitor.Instance) == 0:
                     self.vr_monitor = VRTracker.QVRMonitor()
                     self.vr_monitor.setTerminationEnabled(True)
@@ -196,7 +234,7 @@ class ABMainWindow(QMainWindow):
                     self.vr_monitor.start()
                 else:
                     pass
-            elif (selec[0] == 1):
+            elif (selec and selec[0] == 1):
                 if len(ControllerTracker.QHandMonitor.Instance) == 0:
                     self.hand_monitor = ControllerTracker.QHandMonitor()
                     #self.hand_monitor.setTerminationEnabled(True)
@@ -210,6 +248,8 @@ class ABMainWindow(QMainWindow):
                     #self.hand_monitor.finished.connect(self.threadDelete)
                     #self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
                     self.hand_monitor.start()
+            else:
+                hou.ui.displayMessage("Please make a selection!")
         else:
             hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
 
@@ -228,21 +268,12 @@ class ABMainWindow(QMainWindow):
             self.cam_node.parmTuple('r').set((euler_vec[0], euler_vec[1], euler_vec[2]))
             #self.cam_node.parm('focus').set(loc_data.position.z*10.0)
 
-
     def threadDelete(self):
         if self.vr_monitor:
             VRTracker.QVRMonitor.Instance = []
             self.vr_monitor.quit()
             self.vr_monitor.wait()
             del(self.vr_monitor)
-
-    def test_event(self, event_type, **kwargs):
-        parm_tuple = kwargs['parm_tuple']
-        parm_data = parm_tuple.eval()
-        parm_name = parm_tuple.name()
-        parm_send = parm_data + (parm_name,)
-        self.server_send_info(parm_send)
-
 
     @staticmethod
     def getInstance():
@@ -256,7 +287,6 @@ class ABMainWindow(QMainWindow):
         self.actual_status.setText(self.default_status)
 
     def parameter_callback(self, param):
-
         if self.controlledCamera:
             if param[-1] == 't':
                 self.controlledCamera.parmTuple('t').set(param[:3])
@@ -265,39 +295,7 @@ class ABMainWindow(QMainWindow):
             else:
                 pass
 
-
-    def status_ping(self):
-        SOCKET_PORT = 13290
-        print("ping")
-        msg = "status_ping"
-        self.server_send_info(msg)
-
-    def server_send_info(self, data):
-        SOCKET_PORT = 13290
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((socket.gethostname(), SOCKET_PORT))
-        msg = pickle.dumps(data)
-        s.send(msg)
-
-
-    def server_close(self):
-        SOCKET_PORT = 13290
-        print("close")
-        msg = "shutdown!"
-        self.server_send_info(msg)
-
-
-    def closeEvent(self, event):
-        print("server close")
-        if self.server_monitor and self.server_monitor.isRunning():
-            self.server_close()
-
-
 def initializeWindow():
     reload(SocketListener)
     mWindow = ABMainWindow.getInstance()
     mWindow.show()
-
-    # if len(SocketListener.QSocketMonitor.Instance) == 0:
-    #     server_monitor = SocketListener.QSocketMonitor()
-    #     server_monitor.start()  

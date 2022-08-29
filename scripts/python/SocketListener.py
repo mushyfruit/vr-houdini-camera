@@ -49,8 +49,6 @@ class QSocketMonitor(QThread):
                         else : break
 
                     inc_msg = pickle.loads(self.TotalData)
-                    print(inc_msg)
-                    print("server ^")
                     if inc_msg == "status_ping":
                         self.ButtonCall.emit(address[0] + ":" + str(address[1]))
                     elif inc_msg == "shutdown!":
