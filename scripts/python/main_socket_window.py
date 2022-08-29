@@ -12,7 +12,7 @@ import VRTracker
 import socket
 import sys
 import time
-import xr
+import platform
 
 from importlib import reload
 
@@ -163,52 +163,55 @@ class ABMainWindow(QMainWindow):
 
     def onReceive_press(self):
 
-        hou.ui.reloadViewerState(self.ff_type)
-        scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
-        viewport = scene_viewer.curViewport()
+        if platform.system() == "Windows" || platform.system() == "Linux":
+            hou.ui.reloadViewerState(self.ff_type)
+            scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
+            viewport = scene_viewer.curViewport()
 
-        self.checkForCamera("VR_CAM")
+            self.checkForCamera("VR_CAM")
 
-        if self.cam_node == None:
-            obj = hou.node("/obj/")
-            self.cam_node = obj.createNode("cam", "VR_CAM")
-            viewport.setCamera(self.cam_node)
-            viewport.lockCameraToView(self.cam_node)
+            if self.cam_node == None:
+                obj = hou.node("/obj/")
+                self.cam_node = obj.createNode("cam", "VR_CAM")
+                viewport.setCamera(self.cam_node)
+                viewport.lockCameraToView(self.cam_node)
+            else:
+                viewport.setCamera(self.cam_node)
+                viewport.lockCameraToView(self.cam_node)
+
+            select_list = ["HMD", "Controllers", "Vive Tracker"]
+
+            selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
+
+            scene_viewer.setCurrentState(self.ff_type)
+
+            print(selec)
+
+            if (selec[0] == 0):
+                if len(VRTracker.QVRMonitor.Instance) == 0:
+                    self.vr_monitor = VRTracker.QVRMonitor()
+                    self.vr_monitor.setTerminationEnabled(True)
+                    self.vr_monitor.finished.connect(self.threadDelete)
+                    self.vr_monitor.VR_call.connect(self.VR_Data_Receive)
+                    self.vr_monitor.start()
+                else:
+                    pass
+            elif (selec[0] == 1):
+                if len(ControllerTracker.QHandMonitor.Instance) == 0:
+                    self.hand_monitor = ControllerTracker.QHandMonitor()
+                    #self.hand_monitor.setTerminationEnabled(True)
+                    #self.hand_monitor.finished.connect(self.threadDelete)
+                    self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
+                    self.hand_monitor.start()
+                else:
+                    print(ControllerTracker.QHandMonitor.Instance)
+                    self.hand_monitor = ControllerTracker.QHandMonitor.Instance[0]
+                    #self.hand_monitor.setTerminationEnabled(True)
+                    #self.hand_monitor.finished.connect(self.threadDelete)
+                    #self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
+                    self.hand_monitor.start()
         else:
-            viewport.setCamera(self.cam_node)
-            viewport.lockCameraToView(self.cam_node)
-
-        select_list = ["HMD", "Controllers", "Vive Tracker"]
-
-        selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
-
-        scene_viewer.setCurrentState(self.ff_type)
-
-        print(selec)
-
-        if (selec[0] == 0):
-            if len(VRTracker.QVRMonitor.Instance) == 0:
-                self.vr_monitor = VRTracker.QVRMonitor()
-                self.vr_monitor.setTerminationEnabled(True)
-                self.vr_monitor.finished.connect(self.threadDelete)
-                self.vr_monitor.VR_call.connect(self.VR_Data_Receive)
-                self.vr_monitor.start()
-            else:
-                pass
-        elif (selec[0] == 1):
-            if len(ControllerTracker.QHandMonitor.Instance) == 0:
-                self.hand_monitor = ControllerTracker.QHandMonitor()
-                #self.hand_monitor.setTerminationEnabled(True)
-               #self.hand_monitor.finished.connect(self.threadDelete)
-                self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
-                self.hand_monitor.start()
-            else:
-                print(ControllerTracker.QHandMonitor.Instance)
-                self.hand_monitor = ControllerTracker.QHandMonitor.Instance[0]
-                #self.hand_monitor.setTerminationEnabled(True)
-                #self.hand_monitor.finished.connect(self.threadDelete)
-                #self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
-                self.hand_monitor.start()
+            hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
 
     def VR_Data_Receive(self, loc_data):
 
@@ -232,14 +235,6 @@ class ABMainWindow(QMainWindow):
             self.vr_monitor.quit()
             self.vr_monitor.wait()
             del(self.vr_monitor)
-        # elif self.hand_monitor:
-        #     print("del")
-        #     time.sleep(0.14)
-        #     ControllerTracker.QHandMonitor.Instance = []
-        #     self.hand_monitor.quit()
-        #     self.hand_monitor.wait()
-
-
 
     def test_event(self, event_type, **kwargs):
         parm_tuple = kwargs['parm_tuple']
