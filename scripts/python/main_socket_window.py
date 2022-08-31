@@ -13,7 +13,7 @@ import platform
 
 from importlib import reload
 import viewerstate.utils as su
-
+import RecordingOverlay
 
 if platform.system() == "Windows" or platform.system() == "Linux":
     import ControllerTracker
@@ -189,10 +189,6 @@ class ABMainWindow(QMainWindow):
         if self.server_monitor and self.server_monitor.isRunning():
             self.server_close()
 
-
-
-
-
     def checkForCamera(self, cam_name):
         cameras = hou.nodeType(hou.objNodeTypeCategory(), "cam").instances()
         for camera in cameras:
@@ -201,60 +197,63 @@ class ABMainWindow(QMainWindow):
 
 
     def onReceive_press(self):
+        reload(RecordingOverlay)
+        RecordingOverlay.begin_overlay()
+
         # Can only run on Windows & Linux.
-        if platform.system() == "Windows" or platform.system() == "Linux":
+        # if platform.system() == "Windows" or platform.system() == "Linux":
 
-            hou.ui.reloadViewerState(self.ff_type)
-            scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
-            viewport = scene_viewer.curViewport()
+        #     hou.ui.reloadViewerState(self.ff_type)
+        #     scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
+        #     viewport = scene_viewer.curViewport()
 
-            self.checkForCamera("VR_CAM")
+        #     self.checkForCamera("VR_CAM")
 
-            if self.cam_node == None:
-                obj = hou.node("/obj/")
-                self.cam_node = obj.createNode("cam", "VR_CAM")
-                viewport.setCamera(self.cam_node)
-                viewport.lockCameraToView(self.cam_node)
-            else:
-                viewport.setCamera(self.cam_node)
-                viewport.lockCameraToView(self.cam_node)
+        #     if self.cam_node == None:
+        #         obj = hou.node("/obj/")
+        #         self.cam_node = obj.createNode("cam", "VR_CAM")
+        #         viewport.setCamera(self.cam_node)
+        #         viewport.lockCameraToView(self.cam_node)
+        #     else:
+        #         viewport.setCamera(self.cam_node)
+        #         viewport.lockCameraToView(self.cam_node)
 
-            select_list = ["HMD", "Controllers", "Vive Tracker"]
+        #     select_list = ["HMD", "Controllers", "Vive Tracker"]
 
-            # Query the type of VR Object to track.
-            selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
+        #     # Query the type of VR Object to track.
+        #     selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
 
-            # Change the viewer state if we have a selection
-            if (selec):
-                scene_viewer.setCurrentState(self.ff_type)
+        #     # Change the viewer state if we have a selection
+        #     if (selec):
+        #         scene_viewer.setCurrentState(self.ff_type)
 
-            if (selec and selec[0] == 0):
-                if len(VRTracker.QVRMonitor.Instance) == 0:
-                    self.vr_monitor = VRTracker.QVRMonitor()
-                    self.vr_monitor.setTerminationEnabled(True)
-                    self.vr_monitor.finished.connect(self.threadDelete)
-                    self.vr_monitor.VR_call.connect(self.VR_Data_Receive)
-                    self.vr_monitor.start()
-                else:
-                    pass
-            elif (selec and selec[0] == 1):
-                if len(ControllerTracker.QHandMonitor.Instance) == 0:
-                    self.hand_monitor = ControllerTracker.QHandMonitor()
-                    #self.hand_monitor.setTerminationEnabled(True)
-                    #self.hand_monitor.finished.connect(self.threadDelete)
-                    self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
-                    self.hand_monitor.start()
-                else:
-                    print(ControllerTracker.QHandMonitor.Instance)
-                    self.hand_monitor = ControllerTracker.QHandMonitor.Instance[0]
-                    #self.hand_monitor.setTerminationEnabled(True)
-                    #self.hand_monitor.finished.connect(self.threadDelete)
-                    #self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
-                    self.hand_monitor.start()
-            else:
-                hou.ui.displayMessage("Please make a selection!")
-        else:
-            hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
+        #     if (selec and selec[0] == 0):
+        #         if len(VRTracker.QVRMonitor.Instance) == 0:
+        #             self.vr_monitor = VRTracker.QVRMonitor()
+        #             self.vr_monitor.setTerminationEnabled(True)
+        #             self.vr_monitor.finished.connect(self.threadDelete)
+        #             self.vr_monitor.VR_call.connect(self.VR_Data_Receive)
+        #             self.vr_monitor.start()
+        #         else:
+        #             pass
+        #     elif (selec and selec[0] == 1):
+        #         if len(ControllerTracker.QHandMonitor.Instance) == 0:
+        #             self.hand_monitor = ControllerTracker.QHandMonitor()
+        #             #self.hand_monitor.setTerminationEnabled(True)
+        #             #self.hand_monitor.finished.connect(self.threadDelete)
+        #             self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
+        #             self.hand_monitor.start()
+        #         else:
+        #             print(ControllerTracker.QHandMonitor.Instance)
+        #             self.hand_monitor = ControllerTracker.QHandMonitor.Instance[0]
+        #             #self.hand_monitor.setTerminationEnabled(True)
+        #             #self.hand_monitor.finished.connect(self.threadDelete)
+        #             #self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
+        #             self.hand_monitor.start()
+        #     else:
+        #         hou.ui.displayMessage("Please make a selection!")
+        # else:
+        #     hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
 
     def VR_Data_Receive(self, loc_data):
 
