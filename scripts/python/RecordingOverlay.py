@@ -1,10 +1,13 @@
-from PySide2.QtCore import Qt, QRect, QEvent, QPoint, QTimer, QTime, QRectF, QPointF
+from PySide2.QtCore import Qt, QRect, QEvent, QPoint, QTimer, QTime, QRectF, QPointF, Signal
 from PySide2.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QWidget, QLabel, QGraphicsPixmapItem, QHBoxLayout, QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsRectItem
 from PySide2.QtGui import QColor, QPainter, QPen, QCursor, QPixmap, QGuiApplication, QPalette, QFont, QBrush
 import hou, datetime, os, labutils
 from importlib import reload
 
 class ABRecordingOverlay(hou.qt.ViewerOverlay):
+
+    Recording_Call = Signal(int)
+
     def __init__(self, scene_viewer):
         super(ABRecordingOverlay, self).__init__(scene_viewer)
 
@@ -12,6 +15,7 @@ class ABRecordingOverlay(hou.qt.ViewerOverlay):
         self.time_widget = overlayCountdown()
         #hbox.addWidget(self.time_widget)
         self.setLayout(hbox)
+        hbox.setContentsMargins(0,0,0,0)
 
         #QGraphicsSetup
         vx, vy, vw, vh = self._scene_viewer.geometry()
@@ -88,13 +92,13 @@ class ABRecordingOverlay(hou.qt.ViewerOverlay):
         self.text.setPlainText(str(self.time))
         if self.time <= 0:
             self.timer.stop()
+            self.Recording_Call.emit(0)
 
     def leader_tick(self):
         if (self.leader_time == 360):
             self.leader_time = 0
             self.tick_time += 1;
         self.leader_time += 12
-        print(self.leader_time)
         self.ellipse.setSpanAngle(self.leader_time * 16)
 
         if(self.tick_time >= 3):
@@ -130,5 +134,5 @@ def begin_overlay():
     viewport = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
     #view_window = hou.qt.ViewerOverlay(viewport)
     win = ABRecordingOverlay(viewport)
-    win.show()
+    return win
 

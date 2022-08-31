@@ -198,7 +198,14 @@ class ABMainWindow(QMainWindow):
 
     def onReceive_press(self):
         reload(RecordingOverlay)
-        RecordingOverlay.begin_overlay()
+
+        Overlay = RecordingOverlay.begin_overlay()
+        Overlay.Recording_Call.connect(self.begin_Recording)
+        Overlay.show()
+
+
+
+        #RecordingOverlay.begin_overlay()
 
         # Can only run on Windows & Linux.
         # if platform.system() == "Windows" or platform.system() == "Linux":
@@ -254,6 +261,9 @@ class ABMainWindow(QMainWindow):
         #         hou.ui.displayMessage("Please make a selection!")
         # else:
         #     hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
+
+    def begin_Recording(self, emit_val):
+        print(emit_val)
 
     def VR_Data_Receive(self, loc_data):
 
