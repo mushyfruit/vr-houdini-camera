@@ -14,6 +14,7 @@ import platform
 from importlib import reload
 import viewerstate.utils as su
 import RecordingOverlay
+import CameraRecorder
 
 if platform.system() == "Windows" or platform.system() == "Linux":
     import ControllerTracker
@@ -45,6 +46,11 @@ class ABMainWindow(QMainWindow):
         self.cam_node = None
         self.follow_template = None
         self.ff_type = "ablabs::follow_focus:_1.0"
+        self.cameraChop = None
+
+
+        #Test Vars
+        self.test_cam = None
 
 
     def build_ui(self):
@@ -199,7 +205,16 @@ class ABMainWindow(QMainWindow):
     def onReceive_press(self):
         reload(RecordingOverlay)
 
+        #Create temp camera 
+
+        obj = hou.node("/obj/")
+        if(self.test_cam == None):
+            self.test_cam = obj.createNode("cam", "test_cam")
+            self.camera_actual_status.setText(str(self.test_cam) + " recording input.")
+        #viewport.setCamera(test_cam)
+    
         Overlay = RecordingOverlay.begin_overlay()
+        #Connect the Signal after countdown.
         Overlay.Recording_Call.connect(self.begin_Recording)
         Overlay.show()
 
@@ -263,7 +278,18 @@ class ABMainWindow(QMainWindow):
         #     hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
 
     def begin_Recording(self, emit_val):
-        print(emit_val)
+        #Called after the 321 countdown.
+        reload(CameraRecorder)
+        #Check for camera 
+        if(self.test_cam):
+            if(self.cameraChop and self.cameraChop.getCamera().name() == self.test_cam.name()):
+                self.cameraChop.begin_record()
+                print("run")
+            else:
+                self.cameraChop = CameraRecorder.CameraConstraints(self.test_cam)
+                self.cameraChop.begin_record()
+                print("run two")
+
 
     def VR_Data_Receive(self, loc_data):
 

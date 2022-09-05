@@ -19,7 +19,6 @@ class ABRecordingOverlay(hou.qt.ViewerOverlay):
 
         #QGraphicsSetup
         vx, vy, vw, vh = self._scene_viewer.geometry()
-        print(self._scene_viewer.qtWindow().size())
         self.scene = QGraphicsScene(vx, vy, vw, vh)
 
         # Get bounds for circle
