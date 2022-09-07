@@ -1,6 +1,8 @@
 import time
 import hou
 import os
+import ActiveRecording
+from importlib import reload
 
 FILE_EXT = ".bclip"
 TAKE_NAME = "camera_take_"
@@ -43,8 +45,13 @@ class CameraConstraints:
         self.file_dir = hip_loc + "/VR_Takes_" + camera_node.name() + "/"
 
         self.rec_cam = camera_node
+        self.simple_overlay = None
 
     def begin_record(self):
+
+        reload(ActiveRecording)
+        self.simple_overlay = ActiveRecording.begin_overlay()
+        self.simple_overlay.show()
         
         #Store playback mode
         self.switch_node.parm('index').set(0)
@@ -73,7 +80,10 @@ class CameraConstraints:
             hou.setFrame(hou.playbar.playbackRange()[0])
             hou.playbar.setPlayMode(self.current_mode)
             self.saveTake()
-            self.loadTake()
+            #self.loadTake()
+            if(self.simple_overlay):
+                self.simple_overlay.stop_timers()
+                self.simple_overlay.close()
 
     def retrieveBinary(self):
         #Ensure we have samples in the chopnet
