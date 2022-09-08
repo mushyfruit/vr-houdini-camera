@@ -156,29 +156,40 @@ class CameraConstraints:
         self.record.saveClip(save_file)
         self.take_signal.emit(self.getCurrentTake())
 
-    def loadTake(self):
+    def loadTake(self, provided=""):
         if hou.playbar.isPlaying():
             hou.playbar.stop()
 
-        if(os.path.isdir(self.file_dir) == False):
-            load_dir = hou.text.expandString("$HIP")
+        if(provided==""):
+            if(os.path.isdir(self.file_dir) == False):
+                load_dir = hou.text.expandString("$HIP")
+            else:
+                load_dir = self.file_dir
 
-        selection = hou.ui.selectFile(start_directory=load_dir, file_type = hou.fileType.Clip)
+            selection = hou.ui.selectFile(start_directory=load_dir, file_type = hou.fileType.Clip)
+            self.load_and_emit(selection)
+        else:
+            self.load_and_emit(provided)
 
-        if(selection != ""):
-            self.file_load.parm('file').set(selection)
+    def load_and_emit(self, file_path):
+        if(file_path != "" and os.path.exists(file_path) == True):
+            self.file_load.parm('file').set(file_path)
             self.switch_node.parm('index').set(1)
 
-            file_construct = selection.split("/")[-2:]
+            file_construct = file_path.split("/")[-2:]
             file_name = file_construct[1].split(".")[0]
             take_num = str([int(s) for s in file_name if s.isdigit()][0])
             take_name = file_construct[0]
+            print(take_num)
+            print(take_name)
+            print(file_construct)
 
             #Play back the take.
             hou.playbar.setPlayMode(hou.playMode.Once)
             hou.playbar.setRealTime(True)
             hou.playbar.play()
             self.load_signal.emit(take_name + "_" + take_num)
+
         else:
             hou.ui.displayMessage("Please make a valid selection.")
 

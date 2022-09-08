@@ -1,6 +1,6 @@
 from PySide2 import QtGui
 from PySide2 import QtCore
-from PySide2.QtWidgets import QStatusBar, QAction, QLabel, QWidget,QApplication, QSpacerItem, QVBoxLayout,QMainWindow, QLineEdit, QGroupBox, QHBoxLayout, QToolButton, QPushButton, QMessageBox, QComboBox, QStackedWidget
+from PySide2.QtWidgets import QStatusBar, QAction, QCheckBox, QLabel, QWidget,QApplication, QSpacerItem, QVBoxLayout,QMainWindow, QLineEdit, QGroupBox, QHBoxLayout, QToolButton, QPushButton, QMessageBox, QComboBox, QStackedWidget
 
 import hou
 import pickle
@@ -10,6 +10,7 @@ import socket
 import sys
 import time
 import platform
+import os
 
 from importlib import reload
 import viewerstate.utils as su
@@ -194,17 +195,22 @@ class ABMainWindow(QMainWindow):
         status_area_layout.setContentsMargins(0,0,0,0)
         status_grp_layout.addLayout(status_area_layout)
 
+        #Set option check boxes
+
+        check_layout = QVBoxLayout()
+        self.live_stream = QCheckBox("Stream Camera Position")
+        self.live_stream.setCheckState(QtCore.Qt.Unchecked)
+        check_layout.addWidget(self.live_stream)
+
+
         # Setting the buttons
-        self.connectButton = QPushButton("Connect")
-        self.retrieveButton = QPushButton("Retrieve")
+        self.connectButton = QPushButton("Receive")
         self.transmitButton = QPushButton("Transmit")
         self.connectButton.clicked.connect(self.onConnect_press)
         self.transmitButton.clicked.connect(self.onTransmit_press)
-        self.retrieveButton.clicked.connect(self.onRecord_press)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.connectButton)
-        button_layout.addWidget(self.retrieveButton)
         button_layout.addWidget(self.transmitButton)
 
         layout = QVBoxLayout()
@@ -212,12 +218,27 @@ class ABMainWindow(QMainWindow):
         layout.addWidget(status_grp)
         layout.addWidget(camera_grp)
         layout.addWidget(spacer)
+        layout.addLayout(check_layout)
+        layout.addWidget(spacer)
         layout.addLayout(button_layout)
 
         self.transmit_widget.setLayout(layout)
 
     def loadLastTake(self):
-        print("huh")
+        if self.cameraChop:
+            #Construct the path
+            last_take = str(int(self.cameraChop.getCurrentTake())-1)
+            last_slate = self.slate_val.text()
+            load_dir = hou.text.expandString("$HIP") + "/VR_Takes_" + self.cam_node.name() + "/" + last_slate + "/take_" + last_take + ".bclip"
+            print(load_dir)
+            if(os.path.exists(load_dir)):
+                self.cameraChop.load_signal.connect(self.loadUpdate)
+                self.cameraChop.loadTake(load_dir)
+            else:
+                hou.ui.displayMessage("No Valid Take")
+        else:
+            hou.ui.displayMessage("No Valid Take")
+
 
     def updateTakeName(self):
         if(self.cameraChop):
@@ -258,20 +279,37 @@ class ABMainWindow(QMainWindow):
         self.status_ping()
 
     def onTransmit_press(self):
-        # Grab available cameras in the scene
-        cameras = hou.nodeType(hou.objNodeTypeCategory(), "cam").instances()
-        camera_choices = []
-        for camera in cameras:
-            camera_choices.append(camera.name())
+        if(self.live_stream.isChecked()):
+            # Grab available cameras in the scene
+            cameras = hou.nodeType(hou.objNodeTypeCategory(), "cam").instances()
+            camera_choices = []
+            for camera in cameras:
+                camera_choices.append(camera.name())
 
-        #Select camera object to transmit.
-        selection = hou.ui.selectFromList(camera_choices, exclusive=True, num_visible_rows=len(camera_choices), column_header="Select Camera to Stream")
-        if selection:
-            cam_op = cameras[selection[0]]
+            #Select camera object to transmit.
+            selection = hou.ui.selectFromList(camera_choices, exclusive=True, num_visible_rows=len(camera_choices), column_header="Select Camera to Stream")
+            if selection:
+                cam_op = cameras[selection[0]]
 
-            #Set callback event on position parameters for camera.
-            cam_op.addParmCallback(self.transmitEvent, ('t', 'r'))
-            self.camera_actual_status.setText(str(cam_op) + " streaming position.")
+                #Set callback event on position parameters for camera.
+                cam_op.addParmCallback(self.transmitEvent, ('t', 'r'))
+                self.camera_actual_status.setText(str(cam_op) + " streaming position.")
+        else:
+            self.load_obj_for_transmit()
+
+    def load_obj_for_transmit(self):
+        if(self.cameraChop):
+            load_dir = hou.text.expandString("$HIP") + "/VR_Takes_" + self.cam_node.name() + "/"
+            if(os.path.isdir(load_dir) == False):
+                load_dir = hou.text.expandString("$HIP")
+            obj_sel = hou.ui.selectFile(start_directory=load_dir, file_type = hou.fileType.Clip)
+        else:
+            load_dir = hou.text.expandString("$HIP")
+            obj_sel = hou.ui.selectFile(start_directory=load_dir, file_type = hou.fileType.Clip)
+
+        obj_file = open(obj_sel, "rb")
+        in_file = obj_file.read()
+        self.server_send_info(in_file, True)
 
     def transmitEvent(self, event_type, **kwargs):
         parm_tuple = kwargs['parm_tuple']
@@ -287,13 +325,18 @@ class ABMainWindow(QMainWindow):
         msg = "status_ping"
         self.server_send_info(msg)
 
-    def server_send_info(self, data):
+    def server_send_info(self, data, binary_data=False):
         SOCKET_PORT = 13290
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print(SERVER)
-        s.connect((SERVER, SOCKET_PORT))
-        msg = pickle.dumps(data)
-        s.send(msg)
+        try:
+            s.connect((SERVER, SOCKET_PORT))
+            if(binary_data == False):
+                msg = pickle.dumps(data)
+            else:
+                msg = data
+            s.send(msg)
+        except ConnectionRefusedError as e:
+            hou.ui.displayMessage("Please start the server on the Houdini Session to stream to.")
 
     def server_close(self):
         SOCKET_PORT = 13290
