@@ -1,6 +1,6 @@
 from PySide2 import QtGui
 from PySide2 import QtCore
-from PySide2.QtWidgets import QLabel, QWidget,QApplication, QVBoxLayout,QMainWindow, QGroupBox, QHBoxLayout, QPushButton, QMessageBox
+from PySide2.QtWidgets import QStatusBar, QAction, QLabel, QWidget,QApplication, QSpacerItem, QVBoxLayout,QMainWindow, QLineEdit, QGroupBox, QHBoxLayout, QToolButton, QPushButton, QMessageBox, QComboBox, QStackedWidget
 
 import hou
 import pickle
@@ -28,12 +28,14 @@ class ABMainWindow(QMainWindow):
 
     def __init__(self, parent):
 
+        self.slate_name = "Default Take"
+
         if ABMainWindow.__instance != None:
             return
         else:
             ABMainWindow.__instance = self
         super(ABMainWindow, self).__init__(parent)
-        self.setWindowTitle("Socket Window")
+        self.setWindowTitle("VR Recorder")
         self.setMinimumSize(500, 200)
 
         self.default_status = "Pending..."
@@ -47,8 +49,8 @@ class ABMainWindow(QMainWindow):
         self.follow_template = None
         self.ff_type = "ablabs::follow_focus:_1.0"
         self.cameraChop = None
-
-
+        self.restart_val = 0
+        
         #Test Vars
         self.test_cam = None
 
@@ -58,10 +60,113 @@ class ABMainWindow(QMainWindow):
         self.mainWidget = QWidget()
         self.setCentralWidget(self.mainWidget)
 
-        spacer = QLabel("")
-
         self.main_layout = QVBoxLayout()
 
+        #Widgets for Stacked Widget
+        self.transmit_widget = QWidget()
+        self.record_widget = QWidget()
+
+        #Prepare each page's UI
+        self.transmit_UI()
+        self.record_UI()
+
+        #Add to the Stack.
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self.record_widget)
+        self.stack.addWidget(self.transmit_widget)
+
+        #Create the combo box
+        selec_box = QComboBox()
+        selec_box.addItem("Camera Recorder")
+        selec_box.addItem("Transmit Recordings")
+        selec_box.currentIndexChanged.connect(self.swap_layout)
+
+        #Main layout
+        layout = QVBoxLayout()
+        layout.addWidget(selec_box)
+        layout.addWidget(self.stack)
+
+        self.main_layout.addLayout(layout)
+        self.mainWidget.setLayout(self.main_layout)
+
+    def record_UI(self):
+
+        #QGroupBox for Recording Camera
+        camera_grp = QGroupBox("Recording Camera")
+        camera_grp_lay = QVBoxLayout(camera_grp)
+
+        camera_status_lay = QHBoxLayout()
+        camera_lbl = QLabel("Camera: ")
+
+        self.camera_options = QComboBox()
+        self.populate_cameras()
+
+        self.selected_rec_cam = QLabel("")
+
+        camera_status_lay.addWidget(camera_lbl)
+        camera_status_lay.addWidget(self.camera_options)
+        camera_grp_lay.addLayout(camera_status_lay)
+
+        #QGroup Box for Scene and Take
+        take_grp = QGroupBox("Slate & Take")
+        take_grp_layout = QVBoxLayout(take_grp)
+
+        take_status = QHBoxLayout()
+        take_status.setSpacing(15)
+        slate_lbl = QLabel("Slate: ")
+        self.slate_val = QLineEdit(self.slate_name)
+        self.slate_val.textChanged.connect(self.updateTakeName)
+        take_lbl = QLabel("Take:")
+        self.take_val = QLabel("1")
+        take_font = QtGui.QFont("Arial", 15, QtGui.QFont.Bold)
+        self.take_val.setFont(take_font)
+        take_status.addWidget(slate_lbl)
+        take_status.addWidget(self.slate_val)
+        take_status.addSpacing(55)
+        take_status.addWidget(take_lbl)
+        take_status.addWidget(self.take_val)
+        take_status.addSpacing(55)
+        take_grp_layout.addLayout(take_status)
+
+        #Buttons
+        self.record_btn = QPushButton("Record")
+        self.restart_btn = QPushButton("Restart")
+        self.load_take = QPushButton("Load")
+        self.load_last = QToolButton()
+        self.load_last.setToolTip("Load last take.")
+        self.load_last.setIcon(hou.qt.Icon("BUTTONS_reload"))
+        self.load_last.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
+        self.load_last.clicked.connect(self.loadLastTake)
+        #self.load_last.setAutoRaise(False)
+        # text_action = QAction()
+        # text_action.setIcon(hou.qt.Icon("BUTTONS_reload"))
+
+        #self.load_last.addAction(text_action)
+
+
+        self.record_btn.clicked.connect(self.onRecord_press)
+        self.restart_btn.clicked.connect(self.onRestart_press)
+        self.load_take.clicked.connect(self.onLoad_press)
+
+        spacer = QLabel("")
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(self.restart_btn)
+        btn_layout.addWidget(self.record_btn)
+        btn_layout.addWidget(self.load_take)
+        btn_layout.addWidget(self.load_last)
+
+        layout = QVBoxLayout()
+        layout.addWidget(spacer)
+        layout.addWidget(camera_grp)
+        layout.addWidget(take_grp)
+        layout.addWidget(spacer)
+        layout.addLayout(btn_layout)
+
+        self.record_widget.setLayout(layout)
+
+    def transmit_UI(self):
+        spacer = QLabel("")
         status_grp = QGroupBox("Connection Status")
         status_grp_layout = QVBoxLayout(status_grp)
 
@@ -77,12 +182,10 @@ class ABMainWindow(QMainWindow):
         camera_status_lay.addWidget(self.camera_actual_status)
         camera_grp_lay.addLayout(camera_status_lay)
 
-
         #Status Area
         status_area_layout = QHBoxLayout()
         status_lbl = QLabel("Status: ")
         self.actual_status = QLabel(self.default_status)
-
 
         # Set Status Layout and Widget
         status_area_layout.addWidget(status_lbl)
@@ -91,14 +194,13 @@ class ABMainWindow(QMainWindow):
         status_area_layout.setContentsMargins(0,0,0,0)
         status_grp_layout.addLayout(status_area_layout)
 
-
         # Setting the buttons
         self.connectButton = QPushButton("Connect")
         self.retrieveButton = QPushButton("Retrieve")
         self.transmitButton = QPushButton("Transmit")
         self.connectButton.clicked.connect(self.onConnect_press)
         self.transmitButton.clicked.connect(self.onTransmit_press)
-        self.retrieveButton.clicked.connect(self.onReceive_press)
+        self.retrieveButton.clicked.connect(self.onRecord_press)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.connectButton)
@@ -106,14 +208,23 @@ class ABMainWindow(QMainWindow):
         button_layout.addWidget(self.transmitButton)
 
         layout = QVBoxLayout()
+        layout.addWidget(spacer)
         layout.addWidget(status_grp)
         layout.addWidget(camera_grp)
         layout.addWidget(spacer)
         layout.addLayout(button_layout)
 
-        self.main_layout.addLayout(layout)
-        self.mainWidget.setLayout(self.main_layout)
+        self.transmit_widget.setLayout(layout)
 
+    def loadLastTake(self):
+        print("huh")
+
+    def updateTakeName(self):
+        if(self.cameraChop):
+            self.cameraChop.resetTake()
+
+    def swap_layout(self, index):
+        self.stack.setCurrentIndex(index)
 
     def onConnect_press(self):
         #Check for what camera to attach:
@@ -170,7 +281,6 @@ class ABMainWindow(QMainWindow):
         self.server_send_info(parm_send)
 
     # Server Events
-
     def status_ping(self):
         SOCKET_PORT = 13290
         print("ping")
@@ -201,26 +311,58 @@ class ABMainWindow(QMainWindow):
             if camera.name() == cam_name:
                 self.cam_node = camera
 
+    def onLoad_press(self):
+        reload(CameraRecorder)
+        if(self.cameraChop and self.cameraChop.getCamera().name() == self.cam_node.name()):
+            self.cameraChop.load_signal.connect(self.loadUpdate)
+            self.cameraChop.loadTake()
+        else:
+            obj = hou.node("/obj/")
+            select_cam = obj.glob(self.camera_options.currentText())
+            if (len(select_cam) >= 1):
+                self.cam_node = select_cam[0]
+            else:
+                self.cam_node = obj.createNode("cam", "load_cam")
+                self.camera_options.addItem(self.cam_node.name())
 
-    def onReceive_press(self):
+            self.cameraChop = CameraRecorder.CameraConstraints(self.cam_node)
+            self.cameraChop.load_signal.connect(self.loadUpdate)
+            self.cameraChop.loadTake()
+
+    def loadUpdate(self, file_val):
+        file_items = file_val.split("_")
+        self.take_val.setText(file_items[1])
+        self.slate_val.setText(file_items[0])
+
+    def onRestart_press(self):
+        #Restart with incrementing the take. Saves over.
         reload(RecordingOverlay)
+        self.restart_val = 1
+        self.fire_off_record()
 
-        #Create temp camera 
-
+    def fire_off_record(self):
+        #Record using given camera
         obj = hou.node("/obj/")
-        if(self.test_cam == None):
-            self.test_cam = obj.createNode("cam", "test_cam")
+        select_cam = obj.glob(self.camera_options.currentText())
+        if (len(select_cam) >= 1):
+            self.cam_node = select_cam[0]
+        else:
+            self.cam_node = obj.createNode("cam", "test_cam")
+            self.camera_options.addItem(self.cam_node.name())
             self.camera_actual_status.setText(str(self.test_cam) + " recording input.")
-        #viewport.setCamera(test_cam)
-    
+
+        #Begin Countdown
         Overlay = RecordingOverlay.begin_overlay()
+
         #Connect the Signal after countdown.
         Overlay.Recording_Call.connect(self.begin_Recording)
         Overlay.show()
 
+    def onRecord_press(self):
+        reload(RecordingOverlay)
 
-
-        #RecordingOverlay.begin_overlay()
+        self.restart_val = 0
+        self.fire_off_record()
 
         # Can only run on Windows & Linux.
         # if platform.system() == "Windows" or platform.system() == "Linux":
@@ -280,15 +422,40 @@ class ABMainWindow(QMainWindow):
     def begin_Recording(self, emit_val):
         #Called after the 321 countdown.
         reload(CameraRecorder)
-        #Check for camera 
-        if(self.test_cam):
-            if(self.cameraChop and self.cameraChop.getCamera().name() == self.test_cam.name()):
-                self.cameraChop.begin_record()
-                print("run")
+        self.slate_name = self.slate_val.text()
+        #Check for camera & restart val
+        if(self.cam_node):
+            if(self.cameraChop and self.cameraChop.getCamera().name() == self.cam_node.name()):
+                self.cameraChop.begin_record(self.restart_val, self.slate_name)
+                self.take_signal = self.cameraChop.getTakeSignal()
+                self.cameraChop.take_signal.connect(self.setTakeValue)
             else:
-                self.cameraChop = CameraRecorder.CameraConstraints(self.test_cam)
-                self.cameraChop.begin_record()
-                print("run two")
+                self.cameraChop = CameraRecorder.CameraConstraints(self.cam_node)
+                self.cameraChop.begin_record(self.restart_val, self.slate_name)
+                self.cameraChop.take_signal.connect(self.setTakeValue)
+
+        #After recording, increment our take num.
+
+    def setTakeValue(self, val):
+        self.take_val.setText(val)
+
+    def populate_cameras(self):
+        cameras = hou.nodeType(hou.objNodeTypeCategory(), "cam").instances()
+        selected_cam = ""
+        options = []
+
+        #Show Selection First!
+        if(hou.selectedNodes() != []):
+            for node in hou.selectedNodes():
+                if node.type().name() == "cam":
+                    selected_cam = node.name()
+                    options.append(node.name())
+
+        for camera in cameras:
+            if camera.name() != selected_cam:
+                options.append(camera.name())
+
+        self.camera_options.addItems(options)
 
 
     def VR_Data_Receive(self, loc_data):

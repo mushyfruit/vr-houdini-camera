@@ -104,8 +104,6 @@ class ABRecordingOverlay(hou.qt.ViewerOverlay):
             self.leader_timer.stop()
             self.close()
 
-
-
     def paintEvent(self, event):
         pass
         # vx,vy,vw,vh = self._scene_viewer.geometry()

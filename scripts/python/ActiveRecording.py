@@ -117,7 +117,6 @@ class SimpleRecorderOverlay(hou.qt.ViewerOverlay):
             d_text = d_text[:8]
         self.timer_text.setPlainText(d_text)
 
-
     def stop_timers(self):
         self.update_timer.stop()
 
