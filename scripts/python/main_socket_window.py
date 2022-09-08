@@ -21,7 +21,14 @@ if platform.system() == "Windows" or platform.system() == "Linux":
     import ControllerTracker
     import VRTracker
 
-SERVER = "192.168.1.6"
+if platform.system() == "Darwin":
+    process = os.popen('ipconfig getifaddr en0')
+    SERVER = process.read()
+    process.close()
+else:
+    SERVER = socket.gethostbyname(socket.gethostname())
+
+#SERVER = "192.168.1.6"
 
 class ABMainWindow(QMainWindow):
     #Singleton pattern
@@ -264,9 +271,7 @@ class ABMainWindow(QMainWindow):
             return
 
         #Start QThread Server
-        print(len(SocketListener.QSocketMonitor.Instance))
         if len(SocketListener.QSocketMonitor.Instance) == 0:
-            print("starting up server")
             self.server_monitor = SocketListener.QSocketMonitor()
             self.server_monitor.ButtonCall.connect(self.button_callback)
             self.server_monitor.DataCall.connect(self.parameter_callback)
@@ -276,6 +281,7 @@ class ABMainWindow(QMainWindow):
 
         if self.controlledCamera:
             self.camera_actual_status.setText(str(self.controlledCamera) + " receiving input.")
+
         self.status_ping()
 
     def onTransmit_press(self):
@@ -321,7 +327,6 @@ class ABMainWindow(QMainWindow):
     # Server Events
     def status_ping(self):
         SOCKET_PORT = 13290
-        print("ping")
         msg = "status_ping"
         self.server_send_info(msg)
 
@@ -335,7 +340,7 @@ class ABMainWindow(QMainWindow):
             else:
                 msg = data
             s.send(msg)
-        except ConnectionRefusedError as e:
+        except ConnectionRefusedError:
             hou.ui.displayMessage("Please start the server on the Houdini Session to stream to.")
 
     def server_close(self):
@@ -531,7 +536,7 @@ class ABMainWindow(QMainWindow):
 
 
     def button_callback(self, address):
-        self.default_status = "Connected to " + address
+        self.default_status = "Server running on: " + address
         self.actual_status.setText(self.default_status)
 
     def parameter_callback(self, param):

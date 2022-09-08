@@ -35,13 +35,13 @@ class QSocketMonitor(QThread):
     def stop(self):
         self.terminate()
 
-
     def run(self):
         #time.sleep(0.025)
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.bind((SERVER.strip(), SOCKET_PORT))
             print(SOCKET_PORT)
+            print(SERVER.strip())
 
             while True:
                 s.listen(5)
