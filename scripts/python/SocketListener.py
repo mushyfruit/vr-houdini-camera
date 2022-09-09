@@ -56,7 +56,7 @@ class QSocketMonitor(QThread):
                         if data : self.TotalData += data
                         else : break
 
-                    decode_msg = self.totalData[:HEADERSIZE]
+                    decode_msg = self.TotalData[:HEADERSIZE]
                     print(decode_msg)
                     print_me = decode_msg.decode("utf-8")
                     print(print_me)
