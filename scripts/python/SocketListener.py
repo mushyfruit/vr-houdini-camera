@@ -56,8 +56,9 @@ class QSocketMonitor(QThread):
                         if data : self.TotalData += data
                         else : break
 
-                    decode_msg = self.totalData.decode("utf-8")
-                    print(decode_msg)
+                    decode_msg = self.totalData[:HEADERSIZE]
+                    print_me = decode_msg.decode("utf-8")
+                    print(print_me)
 
                     # inc_msg = pickle.loads(self.TotalData)
                     # if inc_msg == "status_ping":
