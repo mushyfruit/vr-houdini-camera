@@ -58,7 +58,7 @@ class QSocketMonitor(QThread):
                         else : break
 
                     decode_msg = self.TotalData[:HEADERSIZE]
-                    header_info = decode_msg.decode("utf-8")
+                    header_info = decode_msg.decode("utf-8").strip()
 
                     if(header_info != "normal_send" and len(header_info)>0):
                         print(header_info)
