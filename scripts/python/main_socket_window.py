@@ -353,7 +353,8 @@ class ABMainWindow(QMainWindow):
         try:
             s.connect((SERVER, SOCKET_PORT))
             if(binary_data == False):
-                full_msg = f"{"normal_send":<{HEADERSIZE}}"
+                sample_msg = "normal_send"
+                full_msg = f"{sample_msg:<{HEADERSIZE}}"
                 msg = bytes(full_msg, "utf-8") + pickle.dumps(data)
             else:
                 msg = data
