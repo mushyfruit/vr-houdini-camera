@@ -274,6 +274,7 @@ class ABMainWindow(QMainWindow):
         if len(SocketListener.QSocketMonitor.Instance) == 0:
             self.server_monitor = SocketListener.QSocketMonitor()
             self.server_monitor.ButtonCall.connect(self.button_callback)
+            self.server_monitor.ChopsCall.connect(self.chops_callback)
             self.server_monitor.DataCall.connect(self.parameter_callback)
             self.server_monitor.start()
         else:
@@ -557,6 +558,10 @@ class ABMainWindow(QMainWindow):
     def button_callback(self, address):
         self.default_status = "Server running on: " + address
         self.actual_status.setText(self.default_status)
+
+    def chops_callback(self, binary_info):
+        print(binary_info[0])
+        print(binary_info[1])
 
     def parameter_callback(self, param):
         print(param)

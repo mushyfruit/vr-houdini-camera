@@ -18,6 +18,7 @@ else:
 
 class QSocketMonitor(QThread):
 
+    ChopsCall = Signal(object)
     ButtonCall = Signal(str)
     DataCall = Signal(object)
     Instance = []
@@ -57,17 +58,22 @@ class QSocketMonitor(QThread):
                         else : break
 
                     decode_msg = self.TotalData[:HEADERSIZE]
-                    print(decode_msg)
-                    print_me = decode_msg.decode("utf-8")
-                    print(print_me)
-
-                    # inc_msg = pickle.loads(self.TotalData)
-                    # if inc_msg == "status_ping":
-                    #     self.ButtonCall.emit(address[0] + ":" + str(address[1]))
-                    # elif inc_msg == "shutdown!":
-                    #     break
-                    # else:
-                    #     self.DataCall.emit(inc_msg)
+                    header_info = decode_msg.decode("utf-8")
+                    
+                    if(header_info != "normal_send" and len(header_info)>0):
+                        take_num = header_info.split(".")[0]
+                        slate_name = header_info.split(".")[1]
+                        chops_binary = self.TotalData[HEADERSIZE:]
+                        binary_info = (take_num, slate_name, chops_binary)
+                        self.ChopsCall.emit(binary_info)
+                    else:
+                        inc_msg = pickle.loads(self.TotalData[HEADERSIZE:])
+                        if inc_msg == "status_ping":
+                            self.ButtonCall.emit(address[0] + ":" + str(address[1]))
+                        elif inc_msg == "shutdown!":
+                            break
+                        else:
+                            self.DataCall.emit(inc_msg)
         except socket.error as emsg:
             print(emsg)
 
