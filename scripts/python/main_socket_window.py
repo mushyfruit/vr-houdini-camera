@@ -21,14 +21,15 @@ if platform.system() == "Windows" or platform.system() == "Linux":
     import ControllerTracker
     import VRTracker
 
-if platform.system() == "Darwin":
-    process = os.popen('ipconfig getifaddr en0')
-    SERVER = process.read()
-    process.close()
-else:
-    SERVER = socket.gethostbyname(socket.gethostname())
+# if platform.system() == "Darwin":
+#     process = os.popen('ipconfig getifaddr en0')
+#     SERVER = process.read()
+#     process.close()
+# else:
+#     SERVER = socket.gethostbyname(socket.gethostname())
 
-#SERVER = "192.168.1.6"
+SERVER = "192.168.1.6"
+HEADERSIZE = 15
 
 class ABMainWindow(QMainWindow):
     #Singleton pattern
@@ -237,7 +238,6 @@ class ABMainWindow(QMainWindow):
             last_take = str(int(self.cameraChop.getCurrentTake())-1)
             last_slate = self.slate_val.text()
             load_dir = hou.text.expandString("$HIP") + "/VR_Takes_" + self.cam_node.name() + "/" + last_slate + "/take_" + last_take + ".bclip"
-            print(load_dir)
             if(os.path.exists(load_dir)):
                 self.cameraChop.load_signal.connect(self.loadUpdate)
                 self.cameraChop.loadTake(load_dir)
@@ -313,9 +313,27 @@ class ABMainWindow(QMainWindow):
             load_dir = hou.text.expandString("$HIP")
             obj_sel = hou.ui.selectFile(start_directory=load_dir, file_type = hou.fileType.Clip)
 
-        obj_file = open(obj_sel, "rb")
-        in_file = obj_file.read()
-        self.server_send_info(in_file, True)
+        expand_obj = hou.expandString(obj_sel)
+
+        #We'll send over Slate Name and Take Number in the header portion of the msg.
+        file_construct = expand_obj.split("/")[-2:]
+        file_name = file_construct[1].split(".")[0]
+        take_lst = [int(s) for s in file_name if s.isdigit()]
+        if(len(take_lst) >= 1):
+            take_num = take_lst[0]
+            slate_name = file_construct[0]
+
+            obj_file = open(expand_obj, "rb")
+            in_file = obj_file.read()
+
+            header = str(take_num) + "." + slate_name
+            full_msg = f"{header:<{HEADERSIZE}}"
+            in_file = bytes(full_msg, "utf-8") + in_file
+            print(in_file)
+
+            self.server_send_info(in_file, True)
+        else:
+            hou.ui.displayMessage("Invalid File")
 
     def transmitEvent(self, event_type, **kwargs):
         parm_tuple = kwargs['parm_tuple']

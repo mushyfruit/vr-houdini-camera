@@ -7,7 +7,7 @@ import platform
 import os
 
 SOCKET_PORT = 13290
-HEADERSIZE = 10
+HEADERSIZE = 15
 
 if platform.system() == "Darwin":
     process = os.popen('ipconfig getifaddr en0')
@@ -56,13 +56,16 @@ class QSocketMonitor(QThread):
                         if data : self.TotalData += data
                         else : break
 
-                    inc_msg = pickle.loads(self.TotalData)
-                    if inc_msg == "status_ping":
-                        self.ButtonCall.emit(address[0] + ":" + str(address[1]))
-                    elif inc_msg == "shutdown!":
-                        break
-                    else:
-                        self.DataCall.emit(inc_msg)
+                    decode_msg = self.totalData.decode("utf-8")
+                    print(decode_msg)
+
+                    # inc_msg = pickle.loads(self.TotalData)
+                    # if inc_msg == "status_ping":
+                    #     self.ButtonCall.emit(address[0] + ":" + str(address[1]))
+                    # elif inc_msg == "shutdown!":
+                    #     break
+                    # else:
+                    #     self.DataCall.emit(inc_msg)
         except socket.error as emsg:
             print(emsg)
 
