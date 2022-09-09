@@ -566,8 +566,8 @@ class ABMainWindow(QMainWindow):
         new_file_path = hou.text.expandString("$HIP") + "/" + binary_info[1] + "/"
         new_file = new_file_path + "take_" + str(binary_info[0]) + ".bclip"
 
-        if(os.path.isdir(save_dir) == False):
-            os.makedirs(save_dir)
+        if(os.path.isdir(new_file_path) == False):
+            os.makedirs(new_file_path)
 
         file = open(new_file, "wb")
         file.write(binary_info[2])
