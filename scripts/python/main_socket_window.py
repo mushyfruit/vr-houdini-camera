@@ -328,10 +328,9 @@ class ABMainWindow(QMainWindow):
 
             header = str(take_num) + "." + slate_name
             full_msg = f"{header:<{HEADERSIZE}}"
-            in_file = bytes(full_msg, "utf-8") + in_file
-            print(in_file)
+            send_file = bytes(full_msg, "utf-8") + in_file
 
-            self.server_send_info(in_file, True)
+            self.server_send_info(send_file, True)
         else:
             hou.ui.displayMessage("Invalid File")
 
