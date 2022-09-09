@@ -568,7 +568,7 @@ class ABMainWindow(QMainWindow):
 
         print(new_file)
         print(new_file_path)
-        
+
         if(os.path.isdir(new_file_path) == False):
             os.makedirs(new_file_path)
 
@@ -579,6 +579,7 @@ class ABMainWindow(QMainWindow):
             pass
         else:
             self.cameraChop = CameraRecorder.CameraConstraints(self.controlledCamera)
+            self.cameraChop.load_and_emit(new_file)
 
 
     def parameter_callback(self, param):

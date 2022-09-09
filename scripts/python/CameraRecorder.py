@@ -180,9 +180,6 @@ class CameraConstraints:
             file_name = file_construct[1].split(".")[0]
             take_num = str([int(s) for s in file_name if s.isdigit()][0])
             take_name = file_construct[0]
-            print(take_num)
-            print(take_name)
-            print(file_construct)
 
             #Play back the take.
             hou.playbar.setPlayMode(hou.playMode.Once)
