@@ -563,6 +563,21 @@ class ABMainWindow(QMainWindow):
         print(binary_info[0])
         print(binary_info[1])
 
+        new_file_path = hou.text.expandString("$HIP") + "/" + binary_info[1] + "/"
+        new_file = new_file_path + "take_" + str(binary_info[0]) + ".bclip"
+
+        if(os.path.isdir(save_dir) == False):
+            os.makedirs(save_dir)
+
+        file = open(new_file, "wb")
+        file.write(binary_info[2])
+
+        if(self.cameraChop):
+            pass
+        else:
+            self.cameraChop = CameraRecorder.CameraConstraints(self.controlledCamera)
+
+
     def parameter_callback(self, param):
         print(param)
         # if self.controlledCamera:
