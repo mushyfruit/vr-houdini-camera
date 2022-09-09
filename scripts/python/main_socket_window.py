@@ -540,13 +540,14 @@ class ABMainWindow(QMainWindow):
         self.actual_status.setText(self.default_status)
 
     def parameter_callback(self, param):
-        if self.controlledCamera:
-            if param[-1] == 't':
-                self.controlledCamera.parmTuple('t').set(param[:3])
-            elif param[-1] == 'r':
-                self.controlledCamera.parmTuple('r').set(param[:3])
-            else:
-                pass
+        print(param)
+        # if self.controlledCamera:
+        #     if param[-1] == 't':
+        #         self.controlledCamera.parmTuple('t').set(param[:3])
+        #     elif param[-1] == 'r':
+        #         self.controlledCamera.parmTuple('r').set(param[:3])
+        #     else:
+        #         pass
 
 def initializeWindow():
     reload(SocketListener)
