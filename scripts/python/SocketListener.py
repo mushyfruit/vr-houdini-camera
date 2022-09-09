@@ -59,8 +59,9 @@ class QSocketMonitor(QThread):
 
                     decode_msg = self.TotalData[:HEADERSIZE]
                     header_info = decode_msg.decode("utf-8")
-                    
+
                     if(header_info != "normal_send" and len(header_info)>0):
+                        print(header_info)
                         take_num = header_info.split(".")[0]
                         slate_name = header_info.split(".")[1]
                         chops_binary = self.TotalData[HEADERSIZE:]
