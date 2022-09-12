@@ -24,40 +24,53 @@ class CameraConstraints:
     take_signal = TakeSignal(str)
     load_signal = TakeSignal(str)
 
-    def __init__(self, camera_node):
+    def __init__(self, camera_node, stabilize_bool):
 
         self.restart_switch = 0
         self.slate_name = "Default Take"
 
-        self.chop_net = camera_node.createNode("chopnet", "constraints")
-        worldspace = self.chop_net.createNode("constraintgetworldspace", "getworldspace")
-        worldspace.parm("obj_path").set(worldspace.relativePathTo(camera_node)) 
+        if(self.check_for_chops(camera_node) == False):
+            print("false")
+            self.chop_net = camera_node.createNode("chopnet", "constraints")
+            worldspace = self.chop_net.createNode("constraintgetworldspace", "getworldspace")
+            worldspace.parm("obj_path").set(worldspace.relativePathTo(camera_node)) 
 
-        #Create Record Node
-        self.record = self.chop_net.createNode("record", "recordVR")
-        self.record.setInput(0, worldspace)
-        self.record.parm('record').set(0)
-        self.record.moveToGoodPosition()
+            #Create Record Node
+            self.record = self.chop_net.createNode("record", "recordVR")
+            self.record.setInput(0, worldspace)
+            self.record.parm('record').set(0)
+            self.record.moveToGoodPosition()
 
-        #File Loader
-        self.file_load = self.chop_net.createNode("file", "load_bclip")
-        self.file_load.moveToGoodPosition()
+            #File Loader
+            self.file_load = self.chop_net.createNode("file", "load_bclip")
+            self.file_load.moveToGoodPosition()
 
-        #switch node
-        self.switch_node = self.chop_net.createNode("switch", "switch")
-        self.switch_node.setInput(0, self.record)
-        self.switch_node.setInput(1, self.file_load)
-        self.switch_node.moveToGoodPosition()
+            self.filter = self.chop_net.createNode("filter", "stabilize")
+            self.filter.moveToGoodPosition()
+            self.filter.setInput(0, self.record)
 
-        #output node
-        output = self.chop_net.createNode("output", "outputVR")
-        output.setInput(0, self.switch_node)
-        output.setDisplayFlag(1)
-        output.moveToGoodPosition()
+            self.stabilize_switch = self.chop_net.createNode("switch", "stabilize_switch")
+            self.stabilize_switch.setInput(0, self.record)
+            self.stabilize_switch.setInput(1, self.filter)
+            self.stabilize_switch.moveToGoodPosition()
+
+            self.stabilize_switch.parm('index').set(stabilize_bool)
+
+            #switch node
+            self.switch_node = self.chop_net.createNode("switch", "switch")
+            self.switch_node.setInput(0, self.stabilize_switch)
+            self.switch_node.setInput(1, self.file_load)
+            self.switch_node.moveToGoodPosition()
+
+            #output node
+            self.output = self.chop_net.createNode("output", "outputVR")
+            self.output.setInput(0, self.switch_node)
+            self.output.setDisplayFlag(1)
+            self.output.moveToGoodPosition()
 
         #Enable Constraints and set proper path.
         camera_node.parm('constraints_on').set(1)
-        camera_node.parm('constraints_path').set(output.path())
+        camera_node.parm('constraints_path').set(self.output.path())
 
         #Intialize the save location of the files.
         hip_loc = hou.text.expandString("$HIP")
@@ -67,7 +80,23 @@ class CameraConstraints:
         self.rec_cam = camera_node
         self.simple_overlay = None
 
-    def begin_record(self, restart_val, slate):
+    def check_for_chops(self, camera_node):
+        #If there already exists a chop net, get a reference to it.
+        existing_chops = camera_node.glob("constraints*")
+        if(len(existing_chops)>0):
+            existing_chop = existing_chops[0]
+            self.switch_node = existing_chop.node("switch")
+            self.stabilize_switch = existing_chop.node("stabilize_switch")
+            self.filter = existing_chop.node("stabilize")
+            self.record = existing_chop.node("recordVR")
+            self.file_load = existing_chop.node("load_bclip")
+            self.output = existing_chop.node("outputVR")
+            return True
+        else:
+            return False
+
+        # Need: switch node, stabilize_switch, record, 
+    def begin_record(self, restart_val, slate, stabilize_bool, stabilize_val):
 
         reload(ActiveRecording)
         self.simple_overlay = ActiveRecording.begin_overlay()
@@ -80,8 +109,13 @@ class CameraConstraints:
         self.switch_node.parm('index').set(0)
         self.current_mode = hou.playbar.playMode()
 
+        self.stabilize_switch.parm('index').set(stabilize_bool)
+
+        if(stabilize_bool):
+            self.filter.parm("width").set(stabilize_val)
+
         #Set correct playbar settings.
-        hou.playbar.clearEventCallbacks()
+        #hou.playbar.clearEventCallbacks()
         hou.playbar.setPlayMode(hou.playMode.Once)
         hou.playbar.setRealTime(True)
         hou.playbar.addEventCallback(self.frameCallback)
@@ -108,7 +142,7 @@ class CameraConstraints:
         #print(self.record.clip().numSamples())
         #Turn off record on final frame
         if(event_type == hou.playbarEvent.FrameChanged and frame == hou.playbar.playbackRange()[1]):
-            hou.playbar.clearEventCallbacks()
+            print("inner end")
             self.record.parm('record').set(0)
             hou.setFrame(hou.playbar.playbackRange()[0])
             hou.playbar.setPlayMode(self.current_mode)
@@ -119,7 +153,7 @@ class CameraConstraints:
                 self.simple_overlay.close()
         #Stop and clear if playbar changed and stopped
         elif(event_type==hou.playbarEvent.Stopped):
-            hou.playbar.clearEventCallbacks()
+            print("inner stopped")
             self.record.parm('record').set(0)
             hou.playbar.setPlayMode(self.current_mode)
             if(self.simple_overlay):

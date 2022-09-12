@@ -1,6 +1,6 @@
 from PySide2 import QtGui
 from PySide2 import QtCore
-from PySide2.QtWidgets import QStatusBar, QAction, QCheckBox, QLabel, QWidget,QApplication, QSpacerItem, QVBoxLayout,QMainWindow, QLineEdit, QGroupBox, QHBoxLayout, QToolButton, QPushButton, QMessageBox, QComboBox, QStackedWidget
+from PySide2.QtWidgets import QStatusBar, QDoubleSpinBox, QAction, QCheckBox, QLabel, QWidget,QApplication, QSpacerItem, QVBoxLayout,QMainWindow, QLineEdit, QGroupBox, QHBoxLayout, QToolButton, QPushButton, QMessageBox, QComboBox, QStackedWidget
 
 import hou
 import pickle
@@ -58,7 +58,9 @@ class ABMainWindow(QMainWindow):
         self.follow_template = None
         self.ff_type = "ablabs::follow_focus:_1.0"
         self.cameraChop = None
+        self.second_cam = None
         self.restart_val = 0
+        self.original_cam_pos = None
         
         #Test Vars
         self.test_cam = None
@@ -165,11 +167,41 @@ class ABMainWindow(QMainWindow):
         btn_layout.addWidget(self.load_take)
         btn_layout.addWidget(self.load_last)
 
+        options_layout = QHBoxLayout()
+        self.stabilize = QCheckBox("Enable Stabilizer")
+        self.stabilize.setCheckState(QtCore.Qt.Unchecked)
+        self.stabilize.clicked.connect(self.stabilize_checked)
+        self.camera_mult = QDoubleSpinBox()
+        self.camera_mult.setDecimals(1)
+        self.camera_mult.setMinimum(1.0)
+        self.mult_label = QLabel("Camera Scale:")
+        options_layout.addWidget(self.stabilize)
+        options_layout.addSpacing(50)
+        options_layout.addWidget(self.mult_label)
+        options_layout.addWidget(self.camera_mult)
+
+        amt_layout = QHBoxLayout()
+        self.stabilize_amt = QDoubleSpinBox()
+        self.stabilize_amt.setDecimals(1)
+        self.stabilize_amt.setMinimum(1.0)
+        self.stabilize_lbl = QLabel("Stabilize Amount:")
+        amt_layout.addWidget(self.stabilize_lbl)
+        amt_layout.addWidget(self.stabilize_amt)
+        amt_layout.addSpacing(350)
+
+        self.stabilize_amt.hide()
+        self.stabilize_lbl.hide()
+
+        self.hide_spacer = QLabel("")
+
         layout = QVBoxLayout()
         layout.addWidget(spacer)
         layout.addWidget(camera_grp)
         layout.addWidget(take_grp)
         layout.addWidget(spacer)
+        layout.addLayout(options_layout)
+        layout.addLayout(amt_layout)
+        layout.addWidget(self.hide_spacer)
         layout.addLayout(btn_layout)
 
         self.record_widget.setLayout(layout)
@@ -231,6 +263,16 @@ class ABMainWindow(QMainWindow):
         layout.addLayout(button_layout)
 
         self.transmit_widget.setLayout(layout)
+
+    def stabilize_checked(self):
+        if(self.stabilize_amt.isVisible() == False):
+            self.stabilize_amt.show()
+            self.stabilize_lbl.show()
+            self.hide_spacer.hide()
+        else:
+            self.hide_spacer.show()
+            self.stabilize_amt.hide()
+            self.stabilize_lbl.hide()
 
     def loadLastTake(self):
         if self.cameraChop:
@@ -409,15 +451,25 @@ class ABMainWindow(QMainWindow):
         self.fire_off_record()
 
     def fire_off_record(self):
+        #Get Viewport
+        scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
+        viewport = scene_viewer.curViewport()
+
         #Record using given camera
         obj = hou.node("/obj/")
         select_cam = obj.glob(self.camera_options.currentText())
         if (len(select_cam) >= 1):
             self.cam_node = select_cam[0]
         else:
-            self.cam_node = obj.createNode("cam", "test_cam")
+            self.cam_node = obj.createNode("cam", "default_cam")
             self.camera_options.addItem(self.cam_node.name())
-            self.camera_actual_status.setText(str(self.test_cam) + " recording input.")
+
+        self.cam_node.setSelected(True, clear_all_selected=True)
+        #viewport.setCamera(self.cam_node)
+        #viewport.lockCameraToView(self.cam_node)
+
+        #Grabs the selected camera, requires selection.
+        scene_viewer.setCurrentState(self.ff_type, request_new_on_generate=True)
 
         #Begin Countdown
         Overlay = RecordingOverlay.begin_overlay()
@@ -425,81 +477,100 @@ class ABMainWindow(QMainWindow):
         #Connect the Signal after countdown.
         Overlay.Recording_Call.connect(self.begin_Recording)
         Overlay.show()
+        #scene_viewer.setCurrentState(self.ff_type)
+
+        #Set up callbacks.
+        hou.playbar.addEventCallback(self.onFinishedPlayback)
+
+    def onFinishedPlayback(self, event_type, frame):
+        if(event_type == hou.playbarEvent.FrameChanged and frame == hou.playbar.playbackRange()[1]):
+            #end vr tracker
+            if(self.vr_monitor):
+                self.vr_monitor.end_run()
+            elif(self.hand_monitor != None):
+                self.hand_monitor.end_run()
+
+            if(self.original_cam_pos):
+                self.original_cam_pos = None
+            hou.playbar.clearEventCallbacks()
+        #Stop and clear if playbar changed and stopped
+        elif(event_type == hou.playbarEvent.Started):
+            scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
+            scene_viewer.setCurrentState(self.ff_type)
+        elif(event_type==hou.playbarEvent.Stopped):
+            #end the VR tracker
+            if(self.vr_monitor):
+                self.vr_monitor.end_run()
+            elif(self.hand_monitor):
+                self.hand_monitor.end_run()
+
+            if(self.original_cam_pos):
+                self.original_cam_pos = None
+            hou.playbar.clearEventCallbacks()
 
     def onRecord_press(self):
         reload(RecordingOverlay)
 
-        self.restart_val = 0
-        self.fire_off_record()
+        #Can only run on Windows & Linux.
+        if platform.system() == "Windows" or platform.system() == "Linux":
 
-        # Can only run on Windows & Linux.
-        # if platform.system() == "Windows" or platform.system() == "Linux":
+            hou.ui.reloadViewerState(self.ff_type)
+            select_list = ["HMD", "Controller"]
 
-        #     hou.ui.reloadViewerState(self.ff_type)
-        #     scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
-        #     viewport = scene_viewer.curViewport()
+            # Query the type of VR Object to track.
+            selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
+            print(selec)
 
-        #     self.checkForCamera("VR_CAM")
-
-        #     if self.cam_node == None:
-        #         obj = hou.node("/obj/")
-        #         self.cam_node = obj.createNode("cam", "VR_CAM")
-        #         viewport.setCamera(self.cam_node)
-        #         viewport.lockCameraToView(self.cam_node)
-        #     else:
-        #         viewport.setCamera(self.cam_node)
-        #         viewport.lockCameraToView(self.cam_node)
-
-        #     select_list = ["HMD", "Controllers", "Vive Tracker"]
-
-        #     # Query the type of VR Object to track.
-        #     selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
-
-        #     # Change the viewer state if we have a selection
-        #     if (selec):
-        #         scene_viewer.setCurrentState(self.ff_type)
-
-        #     if (selec and selec[0] == 0):
-        #         if len(VRTracker.QVRMonitor.Instance) == 0:
-        #             self.vr_monitor = VRTracker.QVRMonitor()
-        #             self.vr_monitor.setTerminationEnabled(True)
-        #             self.vr_monitor.finished.connect(self.threadDelete)
-        #             self.vr_monitor.VR_call.connect(self.VR_Data_Receive)
-        #             self.vr_monitor.start()
-        #         else:
-        #             pass
-        #     elif (selec and selec[0] == 1):
-        #         if len(ControllerTracker.QHandMonitor.Instance) == 0:
-        #             self.hand_monitor = ControllerTracker.QHandMonitor()
-        #             #self.hand_monitor.setTerminationEnabled(True)
-        #             #self.hand_monitor.finished.connect(self.threadDelete)
-        #             self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
-        #             self.hand_monitor.start()
-        #         else:
-        #             print(ControllerTracker.QHandMonitor.Instance)
-        #             self.hand_monitor = ControllerTracker.QHandMonitor.Instance[0]
-        #             #self.hand_monitor.setTerminationEnabled(True)
-        #             #self.hand_monitor.finished.connect(self.threadDelete)
-        #             #self.hand_monitor.Hand_Call.connect(self.VR_Data_Receive)
-        #             self.hand_monitor.start()
-        #     else:
-        #         hou.ui.displayMessage("Please make a selection!")
-        # else:
-        #     hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
+            # Change the viewer state if we have a selection
+            if (len(selec)>0):
+                if (selec[0] == 0):
+                    #Setting Tracking from VR Headset
+                    if len(VRTracker.QVRMonitor.Instance) == 0:
+                        reload(VRTracker)
+                        self.vr_monitor = VRTracker.QVRMonitor()
+                        self.vr_monitor.setTerminationEnabled(True)
+                        self.vr_monitor.finished.connect(self.threadDelete)
+                        self.vr_monitor.VR_call.connect(self.VR_Data_Receive)
+                        self.vr_monitor.start()
+                    else:
+                        pass
+                elif (selec[0] == 1):
+                    #Tracking from Controller
+                    if len(ControllerTracker.QHandMonitor.Instance) == 0:
+                        reload(ControllerTracker)
+                        self.hand_monitor = ControllerTracker.QHandMonitor()
+                        self.hand_monitor.setTerminationEnabled(True)
+                        self.hand_monitor.finished.connect(self.threadDelete)
+                        self.hand_monitor.Controller_Call.connect(self.Controller_Data_Receive)
+                        self.hand_monitor.ViveTracker_Call.connect(self.Tracker_Data_Receive)
+                        self.hand_monitor.Focus_Call.connect(self.update_Focus_Receive)
+                        self.hand_monitor.start()
+                    else:
+                        pass
+                self.restart_val = 0
+                self.fire_off_record()
+            else:
+                hou.ui.displayMessage("Please make a selection!")
+        else:
+            hou.ui.displayMessage("No Mac Support for OpenXR Python bindings.")
 
     def begin_Recording(self, emit_val):
         #Called after the 321 countdown.
         reload(CameraRecorder)
         self.slate_name = self.slate_val.text()
+        stabilize_bool= self.stabilize.isChecked()
+        stabilize_val = 0
+        if(stabilize_bool):
+            stabilize_val = self.stabilize_amt.value()
         #Check for camera & restart val
         if(self.cam_node):
             if(self.cameraChop and self.cameraChop.getCamera().name() == self.cam_node.name()):
-                self.cameraChop.begin_record(self.restart_val, self.slate_name)
+                self.cameraChop.begin_record(self.restart_val, self.slate_name, stabilize_bool, stabilize_val)
                 self.take_signal = self.cameraChop.getTakeSignal()
                 self.cameraChop.take_signal.connect(self.setTakeValue)
             else:
-                self.cameraChop = CameraRecorder.CameraConstraints(self.cam_node)
-                self.cameraChop.begin_record(self.restart_val, self.slate_name)
+                self.cameraChop = CameraRecorder.CameraConstraints(self.cam_node, stabilize_bool)
+                self.cameraChop.begin_record(self.restart_val, self.slate_name, stabilize_bool, stabilize_val)
                 self.cameraChop.take_signal.connect(self.setTakeValue)
 
         #After recording, increment our take num.
@@ -525,6 +596,29 @@ class ABMainWindow(QMainWindow):
 
         self.camera_options.addItems(options)
 
+    def update_Focus_Receive(self, focus_val):
+        if(self.cam_node):
+            self.cam_node.parm("focus").set(focus_val)
+
+    def Tracker_Data_Receive(self, loc_data):
+        obj = hou.node("/obj/")
+        if(self.second_cam == None):
+            self.second_cam = obj.createNode("cam", "test_cam")
+        else:
+            self.second_cam.setParmTransform(loc_data)
+
+    def Controller_Data_Receive(self, loc_data):
+        #[x,y,z, yaw, pitch, roll]
+        cam_scale = self.camera_mult.value()
+        if self.original_cam_pos == None:
+            self.original_cam_pos = self.cam_node.parmTransform()
+        if self.cam_node:
+            rotate_info = loc_data.extractRotates()
+            trans_info = loc_data.extractTranslates()
+            sized = hou.hmath.buildTranslate(trans_info[0]*cam_scale, trans_info[1]*cam_scale, trans_info[2]*cam_scale)
+            rotate4 = hou.hmath.buildRotate(rotate_info)
+            new_trans = sized * rotate4
+            self.cam_node.setParmTransform(new_trans * self.original_cam_pos)
 
     def VR_Data_Receive(self, loc_data):
 
@@ -534,11 +628,17 @@ class ABMainWindow(QMainWindow):
         scene_viewer = hou.ui.paneTabOfType(hou.paneTabType.SceneViewer)
         viewport = scene_viewer.curViewport()
 
-        self.checkForCamera("VR_CAM")
+        cam_scale = self.camera_mult.value()
+
+        if self.original_cam_pos == None and self.cam_node:
+            self.original_cam_pos = self.cam_node.parmTransform()
 
         if self.cam_node:
-            self.cam_node.parmTuple('t').set((loc_data.position.x*5.0, loc_data.position.y*5.0, loc_data.position.z*5.0))
-            self.cam_node.parmTuple('r').set((euler_vec[0], euler_vec[1], euler_vec[2]))
+            translate = hou.hmath.buildTranslate(loc_data.position.x*cam_scale, loc_data.position.y*cam_scale, loc_data.position.z*cam_scale)
+            rotate = hou.hmath.buildRotate(euler_vec[0], euler_vec[1], euler_vec[2])
+            incoming_transform = translate * rotate
+            full_transform = incoming_transform * self.original_cam_pos
+            self.cam_node.setParmTransform(full_transform)
             #self.cam_node.parm('focus').set(loc_data.position.z*10.0)
 
     def threadDelete(self):
@@ -546,14 +646,17 @@ class ABMainWindow(QMainWindow):
             VRTracker.QVRMonitor.Instance = []
             self.vr_monitor.quit()
             self.vr_monitor.wait()
-            del(self.vr_monitor)
+            self.vr_monitor=None
+        if self.hand_monitor:
+            ControllerTracker.QHandMonitor.Instance = []
+            self.hand_monitor.quit()
+            self.hand_monitor.wait()
 
     @staticmethod
     def getInstance():
         if ABMainWindow.__instance == None:
             ABMainWindow(hou.qt.mainWindow())
         return ABMainWindow.__instance
-
 
     def button_callback(self, address):
         self.default_status = "Server running on: " + address
@@ -576,21 +679,19 @@ class ABMainWindow(QMainWindow):
         file.write(binary_info[2])
 
         if(self.cameraChop):
-            pass
+            self.cameraChop.load_and_emit(new_file)
         else:
             self.cameraChop = CameraRecorder.CameraConstraints(self.controlledCamera)
             self.cameraChop.load_and_emit(new_file)
 
-
     def parameter_callback(self, param):
-        print(param)
-        # if self.controlledCamera:
-        #     if param[-1] == 't':
-        #         self.controlledCamera.parmTuple('t').set(param[:3])
-        #     elif param[-1] == 'r':
-        #         self.controlledCamera.parmTuple('r').set(param[:3])
-        #     else:
-        #         pass
+        if self.controlledCamera:
+            if param[-1] == 't':
+                self.controlledCamera.parmTuple('t').set(param[:3])
+            elif param[-1] == 'r':
+                self.controlledCamera.parmTuple('r').set(param[:3])
+            else:
+                pass
 
 def initializeWindow():
     reload(SocketListener)
