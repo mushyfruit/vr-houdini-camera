@@ -1,6 +1,8 @@
 # VR-Houdini-Camera
 Houdini Utility to stream and record VR Input from HMD or Controllers to a viewport camera. Implements a slating system, SceneViewer overlay countdown, and playback of recorded clips to the viewport. Includes simple utility for transferring .bclip data over sockets to other Houdini sessions on the local network.
 
+## Example Footage:
+
 [![alt text](https://i.imgur.com/rB7qdbA.jpeg)](https://youtu.be/Bxr7zV4-d3U)
 
 
