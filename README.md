@@ -3,6 +3,8 @@ Houdini Utility to stream and record VR Input from HMD or Controllers to a viewp
 
 This project utilizes cmbrun's amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) and [pyopenvr](https://github.com/cmbruns/pyopenvr) libraries.
 
+Tested with the HTC Vive.
+
 ## Example Footage:
 
 https://user-images.githubusercontent.com/73495888/190064860-77a33d7d-43a3-450f-9cdf-5c366252e007.mp4
@@ -10,6 +12,10 @@ https://user-images.githubusercontent.com/73495888/190064860-77a33d7d-43a3-450f-
 ## Installation
 * Copy the "VR_Houdini_Camera.json" package file to $HOME/houdini19.5/packages and edit the path to point to root folder of VR Houdini Camera.
 * Install the necessary python libraries with `pip install -r requirements.txt`
+* Ensure your VR Devices are enabled and tracking.
+
+### Tips:
+* Disable SteamVR Home for improved performance. Make sure to Enable Developer Settings on the SteamVR settings to do this.
 
 ## Usage
 * Record VR Input from HMD or Controllers directly to a Houdini Viewport Camera.
