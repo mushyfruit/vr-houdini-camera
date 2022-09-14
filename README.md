@@ -7,6 +7,7 @@ https://user-images.githubusercontent.com/73495888/190064860-77a33d7d-43a3-450f-
 
 ## Installation
 * Copy the "VR_Houdini_Camera.json" package file to $HOME/houdini19.5/packages and edit the path to point to root folder of VR Houdini Camera.
+* Install the necessary python libraries with `pip install -r requirements.txt`
 
 ## Usage
 * Record VR Input from HMD or Controllers directly to a Houdini Viewport Camera.
