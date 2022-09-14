@@ -30,7 +30,6 @@ class CameraConstraints:
         self.slate_name = "Default Take"
 
         if(self.check_for_chops(camera_node) == False):
-            print("false")
             self.chop_net = camera_node.createNode("chopnet", "constraints")
             worldspace = self.chop_net.createNode("constraintgetworldspace", "getworldspace")
             worldspace.parm("obj_path").set(worldspace.relativePathTo(camera_node)) 
@@ -142,7 +141,6 @@ class CameraConstraints:
         #print(self.record.clip().numSamples())
         #Turn off record on final frame
         if(event_type == hou.playbarEvent.FrameChanged and frame == hou.playbar.playbackRange()[1]):
-            print("inner end")
             self.record.parm('record').set(0)
             hou.setFrame(hou.playbar.playbackRange()[0])
             hou.playbar.setPlayMode(self.current_mode)
@@ -153,7 +151,6 @@ class CameraConstraints:
                 self.simple_overlay.close()
         #Stop and clear if playbar changed and stopped
         elif(event_type==hou.playbarEvent.Stopped):
-            print("inner stopped")
             self.record.parm('record').set(0)
             hou.playbar.setPlayMode(self.current_mode)
             if(self.simple_overlay):

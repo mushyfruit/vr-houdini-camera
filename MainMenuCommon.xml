@@ -4,7 +4,7 @@
 	<menuBar>
 		
 		<subMenu id="ab_labs_menu">
-			<label>AB_Labs</label>
+			<label>Pipeline Tools</label>
 			<insertBefore>help_menu</insertBefore>
 			
 			<separatorItem />
@@ -20,7 +20,7 @@ RedImport.print_test()]]></scriptCode>
 		</scriptItem>
 		
 		<scriptItem id="second_item">
-			<label>Socket Test</label>
+			<label>VR Camera - Record and Transmit</label>
 			<scriptCode>
 				<![CDATA[
 import main_socket_window as mainWindow

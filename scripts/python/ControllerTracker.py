@@ -164,7 +164,9 @@ class QHandMonitor(QThread):
         self.terminate()
 
     def run(self):
+       
         v = controller_tracker()
+
         #v.print_discovered_objects()
 
         device_list = v.getDevices().items()

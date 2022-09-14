@@ -140,8 +140,6 @@ class State(object):
                     #Grab Focus Value
                     focus_val = node.parm('focus').eval()
 
-                    cam_transform = node.parmTransform()
-
                     current_transform = node.parmTuple('t').eval()
                     current_orient = node.parmTuple('r').eval()
 
@@ -174,6 +172,7 @@ class State(object):
                         else:
                             self.focus_Drawable.show(False)
                             self.simpleDrawable.show(True)
+                            self.point_str = []
 
     def onDraw(self, kwargs):
         if(self.enable_ff):

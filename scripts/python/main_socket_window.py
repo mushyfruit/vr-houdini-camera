@@ -38,6 +38,7 @@ class ABMainWindow(QMainWindow):
     def __init__(self, parent):
 
         self.slate_name = "Default Take"
+        self.cameraChop = None
 
         if ABMainWindow.__instance != None:
             return
@@ -57,11 +58,12 @@ class ABMainWindow(QMainWindow):
         self.cam_node = None
         self.follow_template = None
         self.ff_type = "ablabs::follow_focus:_1.0"
-        self.cameraChop = None
         self.second_cam = None
         self.restart_val = 0
         self.original_cam_pos = None
-        
+
+        self.obj_context = hou.node("/obj/")
+        self.obj_context.addEventCallback((hou.nodeEventType.ChildCreated, ), self.camera_created)
         #Test Vars
         self.test_cam = None
 
@@ -138,6 +140,8 @@ class ABMainWindow(QMainWindow):
         take_status.addWidget(self.take_val)
         take_status.addSpacing(55)
         take_grp_layout.addLayout(take_status)
+
+        self.camera_options.currentIndexChanged.connect(self.camera_changed)
 
         #Buttons
         self.record_btn = QPushButton("Record")
@@ -263,6 +267,16 @@ class ABMainWindow(QMainWindow):
         layout.addLayout(button_layout)
 
         self.transmit_widget.setLayout(layout)
+
+    def camera_created(self, *args, **kwargs):
+        if(kwargs['child_node'].type().name() == "cam"):
+            self.populate_cameras()
+
+    def camera_changed(self, index):
+        if(self.cameraChop):
+            #Reset the chop
+            self.cameraChop.resetTake()
+        self.setTakeValue("1")
 
     def stabilize_checked(self):
         if(self.stabilize_amt.isVisible() == False):
@@ -411,9 +425,9 @@ class ABMainWindow(QMainWindow):
         self.server_send_info(msg)
 
     def closeEvent(self, event):
-        print("server close")
         if self.server_monitor and self.server_monitor.isRunning():
             self.server_close()
+        self.obj_context.removeEventCallback((hou.nodeEventType.ChildCreated, ), self.camera_created)
 
     def checkForCamera(self, cam_name):
         cameras = hou.nodeType(hou.objNodeTypeCategory(), "cam").instances()
@@ -465,8 +479,8 @@ class ABMainWindow(QMainWindow):
             self.camera_options.addItem(self.cam_node.name())
 
         self.cam_node.setSelected(True, clear_all_selected=True)
-        #viewport.setCamera(self.cam_node)
-        #viewport.lockCameraToView(self.cam_node)
+        viewport.setCamera(self.cam_node)
+        viewport.lockCameraToView(self.cam_node)
 
         #Grabs the selected camera, requires selection.
         scene_viewer.setCurrentState(self.ff_type, request_new_on_generate=True)
@@ -519,7 +533,6 @@ class ABMainWindow(QMainWindow):
 
             # Query the type of VR Object to track.
             selec = hou.ui.selectFromList(select_list, num_visible_rows=len(select_list), height=30, column_header="Select Object to Track")
-            print(selec)
 
             # Change the viewer state if we have a selection
             if (len(selec)>0):
@@ -531,7 +544,6 @@ class ABMainWindow(QMainWindow):
                         self.vr_monitor.setTerminationEnabled(True)
                         self.vr_monitor.finished.connect(self.threadDelete)
                         self.vr_monitor.VR_call.connect(self.VR_Data_Receive)
-                        self.vr_monitor.start()
                     else:
                         pass
                 elif (selec[0] == 1):
@@ -544,7 +556,6 @@ class ABMainWindow(QMainWindow):
                         self.hand_monitor.Controller_Call.connect(self.Controller_Data_Receive)
                         self.hand_monitor.ViveTracker_Call.connect(self.Tracker_Data_Receive)
                         self.hand_monitor.Focus_Call.connect(self.update_Focus_Receive)
-                        self.hand_monitor.start()
                     else:
                         pass
                 self.restart_val = 0
@@ -562,6 +573,12 @@ class ABMainWindow(QMainWindow):
         stabilize_val = 0
         if(stabilize_bool):
             stabilize_val = self.stabilize_amt.value()
+
+
+        if(self.hand_monitor):
+            self.hand_monitor.start()
+        elif(self.vr_monitor):
+            self.vr_monitor.start()
         #Check for camera & restart val
         if(self.cam_node):
             if(self.cameraChop and self.cameraChop.getCamera().name() == self.cam_node.name()):
@@ -582,6 +599,9 @@ class ABMainWindow(QMainWindow):
         cameras = hou.nodeType(hou.objNodeTypeCategory(), "cam").instances()
         selected_cam = ""
         options = []
+
+        if(self.camera_options.count() != 0):
+            self.camera_options.clear()
 
         #Show Selection First!
         if(hou.selectedNodes() != []):
@@ -651,6 +671,7 @@ class ABMainWindow(QMainWindow):
             ControllerTracker.QHandMonitor.Instance = []
             self.hand_monitor.quit()
             self.hand_monitor.wait()
+            self.hand_monitor=None
 
     @staticmethod
     def getInstance():
