@@ -2,40 +2,18 @@
 
 <mainMenu>
 	<menuBar>
-		
-		<subMenu id="ab_labs_menu">
-			<label>Pipeline Tools</label>
-			<insertBefore>help_menu</insertBefore>
-			
-			<separatorItem />
-			
-		<scriptItem id="first_item">
-			<label>Redshift Importer</label>
-			<scriptCode>
-				<![CDATA[
-import Redshift.RedshiftImporter as RedImport
-from importlib import reload
-reload(RedImport)
-RedImport.print_test()]]></scriptCode>
-		</scriptItem>
-		
-		<scriptItem id="second_item">
-			<label>VR Camera - Record and Transmit</label>
-			<scriptCode>
+		<subMenu id="windows_menu">
+			<scriptItem id="vr_camera_interface">
+				<label>VR Camera - Record and Transmit</label>
+				<insertAfter>windows_menu_sep_4</insertAfter>
+				<scriptCode>
 				<![CDATA[
 import main_socket_window as mainWindow
 from importlib import reload
 reload(mainWindow)
-mainWindow.initializeWindow()]]></scriptCode>
-		</scriptItem>
-			
-<separatorItem />
-		
-	<scriptItem id="documentation">
-		<label>Documentation</label>
-		<scriptCode><![CDATA[__import__('webbrowser').open('https://docs.google.com/document/d/1NQo0ebfaM9b5zC59vc1U-XB7bU7ChDouzYqq9lBfLZo/edit?usp=sharing')]]></scriptCode>
-	</scriptItem>
-
+mainWindow.initializeWindow()]]>
+				</scriptCode>
+			</scriptItem>
 		</subMenu>
 	</menuBar>
 </mainMenu>
