@@ -4,6 +4,8 @@ from PySide2.QtGui import QColor, QPainter, QPen, QCursor, QPixmap, QGuiApplicat
 import hou, datetime, os, labutils
 from importlib import reload
 
+#Responsible for the 3 2 1 countdown on the viewport.
+
 class ABRecordingOverlay(hou.qt.ViewerOverlay):
 
     Recording_Call = Signal(int)
@@ -103,22 +105,6 @@ class ABRecordingOverlay(hou.qt.ViewerOverlay):
         if(self.tick_time >= 3):
             self.leader_timer.stop()
             self.close()
-
-    def paintEvent(self, event):
-        pass
-        # vx,vy,vw,vh = self._scene_viewer.geometry()
-        # scene = QGraphicsScene(vx, vy, vw, vh)
-        # rect = QGraphicsRectItem(0, 0, 200, 50)
-        # scene.addItem(rect)
-        # view = QGraphicsView()
-        # view.show()
-        # painter = QPainter(self)
-        # painter.setPen(QPen(Qt.white, 8, Qt.DashLine))
-        # vx,vy,vw,vh = self._scene_viewer.geometry()
-        # center = QPoint(vw/2.0, vh/2.0)
-        # radius_val = min(vw, vh)/2.0
-        # painter.drawEllipse(center, radius_val, radius_val)
-        # painter.drawEllipse(center, radius_val/1.2, radius_val/1.2)
 
 class overlayCountdown(QLabel):
     def __init__(self, parent=None):

@@ -4,6 +4,8 @@ import hou
 
 from PySide2.QtCore import QThread, Signal
 
+#Simple OpenXR program to bind and initialize headset, then query loc data.
+
 class QVRMonitor(QThread):
     VR_call = Signal(object)
     Instance = []

@@ -8,6 +8,8 @@ from importlib import reload
 
 FILE_EXT = ".bclip"
 
+# Responsible for the recording functionality of the cameras via chop networks.
+
 class TakeSignal:
     def __init__(self, typ):
         Emitter = type('Emitter', (QtCore.QObject,), {'signal': Signal(typ)})

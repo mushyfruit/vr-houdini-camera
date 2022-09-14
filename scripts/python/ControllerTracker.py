@@ -18,10 +18,6 @@ def convert_to_euler(pose_mat):
     pitch = 180 / math.pi * math.atan2(pose_mat[2][0], pose_mat[0][0])
     roll = 180 / math.pi * math.atan2(pose_mat[2][1], pose_mat[2][2])
 
-    # yaw = hou.hmath.fit(yaw, -180, 180, 0, 360)
-    # pitch = hou.hmath.fit(pitch, -180, 180, 0, 360)
-    # roll = hou.hmath.fit(roll, -180, 180, 0, 360)
-
     x = pose_mat[0][3]
     y = pose_mat[1][3]
     z = pose_mat[2][3]

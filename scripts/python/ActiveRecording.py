@@ -3,6 +3,8 @@ from PySide2.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QWidg
 from PySide2.QtGui import QColor, QPainter, QPen, QCursor, QPixmap, QGuiApplication, QPalette, QFont, QBrush, QFontMetricsF
 import hou, datetime, os, labutils
 
+# Recording indicator and timecode
+
 class SimpleRecorderOverlay(hou.qt.ViewerOverlay):
 
     def __init__(self, scene_viewer):
