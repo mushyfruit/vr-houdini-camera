@@ -1,0 +1,9 @@
+{
+    "path": "$VR_CAM",
+    "load_package_once": true,
+    "env": [
+        {
+            "VR_CAM": "$HOUDINI_PACKAGE_PATH/AB_Labs"
+        }
+    ]
+}
