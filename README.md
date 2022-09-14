@@ -3,7 +3,7 @@ Houdini Utility to stream and record VR Input from HMD or Controllers to a viewp
 
 This project utilizes cmbrun's amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) and [pyopenvr](https://github.com/cmbruns/pyopenvr) libraries.
 
-Tested with the HTC Vive.
+Tested with the HTC Vive HMD + Vive Tracker
 
 ## Example Footage:
 
