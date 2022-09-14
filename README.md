@@ -3,8 +3,7 @@ Houdini Utility to stream and record VR Input from HMD or Controllers to a viewp
 
 ## Example Footage:
 
-[![alt text](https://i.imgur.com/rB7qdbA.jpeg)](https://youtu.be/Bxr7zV4-d3U)
-
+https://user-images.githubusercontent.com/73495888/190064860-77a33d7d-43a3-450f-9cdf-5c366252e007.mp4
 
 ## Installation
 * Copy the "VR_Houdini_Camera.json" package file to $HOME/houdini19.5/packages and edit the path to point to root folder of VR Houdini Camera.
