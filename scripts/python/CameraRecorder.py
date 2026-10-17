@@ -1,133 +1,104 @@
-from PySide2.QtCore import Signal
-from PySide2 import QtCore
-import time
-import hou
 import os
+
+import hou
+from PySide6.QtCore import QObject, Signal
+
 import ActiveRecording
-from importlib import reload
 
 FILE_EXT = ".bclip"
 
-# Responsible for the recording functionality of the cameras via chop networks.
+class CameraConstraints(QObject):
+    take_signal = Signal(str)
+    load_signal = Signal(str)
 
-class TakeSignal:
-    def __init__(self, typ):
-        Emitter = type('Emitter', (QtCore.QObject,), {'signal': Signal(typ)})
-        self.emitter = Emitter()
-
-    def emit(self, *args, **kw):
-        self.emitter.signal.emit(*args, **kw)
-
-    def connect(self, slot):
-        self.emitter.signal.connect(slot)
-
-class CameraConstraints:
-
-    take_signal = TakeSignal(str)
-    load_signal = TakeSignal(str)
-
-    def __init__(self, camera_node, stabilize_bool):
-
+    def __init__(self, camera_node, stabilize_bool=False):
+        super().__init__()
         self.restart_switch = 0
         self.slate_name = "Default Take"
+        self.take_num = 0
+        self.rec_cam = camera_node
+        self.simple_overlay = None
+        self._recording = False
 
-        if(self.check_for_chops(camera_node) == False):
+        if not self.check_for_chops(camera_node):
             self.chop_net = camera_node.createNode("chopnet", "constraints")
             worldspace = self.chop_net.createNode("constraintgetworldspace", "getworldspace")
-            worldspace.parm("obj_path").set(worldspace.relativePathTo(camera_node)) 
+            worldspace.parm("obj_path").set(worldspace.relativePathTo(camera_node))
 
-            #Create Record Node
             self.record = self.chop_net.createNode("record", "recordVR")
             self.record.setInput(0, worldspace)
-            self.record.parm('record').set(0)
-            self.record.moveToGoodPosition()
+            self.record.parm("record").set(0)
 
-            #File Loader
             self.file_load = self.chop_net.createNode("file", "load_bclip")
-            self.file_load.moveToGoodPosition()
-
             self.filter = self.chop_net.createNode("filter", "stabilize")
-            self.filter.moveToGoodPosition()
             self.filter.setInput(0, self.record)
 
             self.stabilize_switch = self.chop_net.createNode("switch", "stabilize_switch")
             self.stabilize_switch.setInput(0, self.record)
             self.stabilize_switch.setInput(1, self.filter)
-            self.stabilize_switch.moveToGoodPosition()
+            self.stabilize_switch.parm("index").set(stabilize_bool)
 
-            self.stabilize_switch.parm('index').set(stabilize_bool)
-
-            #switch node
             self.switch_node = self.chop_net.createNode("switch", "switch")
             self.switch_node.setInput(0, self.stabilize_switch)
             self.switch_node.setInput(1, self.file_load)
-            self.switch_node.moveToGoodPosition()
 
-            #output node
             self.output = self.chop_net.createNode("output", "outputVR")
             self.output.setInput(0, self.switch_node)
-            self.output.setDisplayFlag(1)
-            self.output.moveToGoodPosition()
+            self.output.setDisplayFlag(True)
 
-        #Enable Constraints and set proper path.
-        camera_node.parm('constraints_on').set(1)
-        camera_node.parm('constraints_path').set(self.output.path())
+            for node in self.chop_net.children():
+                node.moveToGoodPosition()
 
-        #Intialize the save location of the files.
-        hip_loc = hou.text.expandString("$HIP")
-        self.take_num = 0
-        self.file_dir = hip_loc + "/VR_Takes_" + camera_node.name() + "/"
-
-        self.rec_cam = camera_node
-        self.simple_overlay = None
+        camera_node.parm("constraints_on").set(True)
+        camera_node.parm("constraints_path").set(self.output.path())
+        self.file_dir = os.path.join(
+            hou.text.expandString("$HIP"), f"VR_Takes_{camera_node.name()}"
+        )
 
     def check_for_chops(self, camera_node):
-        #If there already exists a chop net, get a reference to it.
-        existing_chops = camera_node.glob("constraints*")
-        if(len(existing_chops)>0):
-            existing_chop = existing_chops[0]
-            self.switch_node = existing_chop.node("switch")
-            self.stabilize_switch = existing_chop.node("stabilize_switch")
-            self.filter = existing_chop.node("stabilize")
-            self.record = existing_chop.node("recordVR")
-            self.file_load = existing_chop.node("load_bclip")
-            self.output = existing_chop.node("outputVR")
-            return True
-        else:
+        self.chop_net = camera_node.node("constraints")
+        if self.chop_net is None:
             return False
 
-        # Need: switch node, stabilize_switch, record, 
-    def begin_record(self, restart_val, slate, stabilize_bool, stabilize_val):
+        self.switch_node = self.chop_net.node("switch")
+        self.stabilize_switch = self.chop_net.node("stabilize_switch")
+        self.filter = self.chop_net.node("stabilize")
+        self.record = self.chop_net.node("recordVR")
+        self.file_load = self.chop_net.node("load_bclip")
+        self.output = self.chop_net.node("outputVR")
+        return all((
+            self.switch_node,
+            self.stabilize_switch,
+            self.filter,
+            self.record,
+            self.file_load,
+            self.output,
+        ))
 
-        reload(ActiveRecording)
+    def begin_record(self, restart_val, slate, stabilize_bool, stabilize_val):
+        if self._recording:
+            self._finish_recording(save=False)
+
         self.simple_overlay = ActiveRecording.begin_overlay()
         self.simple_overlay.show()
-
         self.setRestart(restart_val)
         self.setSlateName(slate)
-        
-        #Store playback mode
-        self.switch_node.parm('index').set(0)
+        self.switch_node.parm("index").set(0)
         self.current_mode = hou.playbar.playMode()
-
-        self.stabilize_switch.parm('index').set(stabilize_bool)
-
-        if(stabilize_bool):
+        self.current_realtime = hou.playbar.isRealTime()
+        self.start_frame, self.end_frame = hou.playbar.playbackRange()
+        self.stabilize_switch.parm("index").set(stabilize_bool)
+        if stabilize_bool:
             self.filter.parm("width").set(stabilize_val)
 
-        #Set correct playbar settings.
-        #hou.playbar.clearEventCallbacks()
         hou.playbar.setPlayMode(hou.playMode.Once)
         hou.playbar.setRealTime(True)
-        hou.playbar.addEventCallback(self.frameCallback)
-        hou.setFrame(hou.playbar.playbackRange()[0])
-
-        #Fire off the recording
-        self.record.parm('record').set(1)
+        if self.frameCallback not in hou.playbar.eventCallbacks():
+            hou.playbar.addEventCallback(self.frameCallback)
+        hou.setFrame(self.start_frame)
+        self.record.parm("record").set(1)
+        self._recording = True
         hou.playbar.play()
-
-    def getTakeSignal(self):
-        return self.take_signal
 
     def setRestart(self, val):
         self.restart_switch = val
@@ -140,104 +111,72 @@ class CameraConstraints:
         self.slate_name = slate
 
     def frameCallback(self, event_type, frame):
-        #print(self.record.clip().numSamples())
-        #Turn off record on final frame
-        if(event_type == hou.playbarEvent.FrameChanged and frame == hou.playbar.playbackRange()[1]):
-            self.record.parm('record').set(0)
-            hou.setFrame(hou.playbar.playbackRange()[0])
-            hou.playbar.setPlayMode(self.current_mode)
+        if not self._recording:
+            return
+        if event_type == hou.playbarEvent.FrameChanged and frame >= self.end_frame:
+            self._finish_recording(save=True)
+        elif event_type == hou.playbarEvent.Stopped:
+            self._finish_recording(save=False)
+
+    def _finish_recording(self, save):
+        self._recording = False
+        self.record.parm("record").set(0)
+        if self.frameCallback in hou.playbar.eventCallbacks():
+            hou.playbar.removeEventCallback(self.frameCallback)
+        hou.playbar.setPlayMode(self.current_mode)
+        hou.playbar.setRealTime(self.current_realtime)
+        if save:
+            hou.setFrame(self.start_frame)
             self.saveTake()
-            #self.loadTake()
-            if(self.simple_overlay):
-                self.simple_overlay.stop_timers()
-                self.simple_overlay.close()
-        #Stop and clear if playbar changed and stopped
-        elif(event_type==hou.playbarEvent.Stopped):
-            self.record.parm('record').set(0)
-            hou.playbar.setPlayMode(self.current_mode)
-            if(self.simple_overlay):
-                self.simple_overlay.stop_timers()
-                self.simple_overlay.close()
+        if self.simple_overlay:
+            self.simple_overlay.stop_timers()
+            self.simple_overlay.close()
+            self.simple_overlay = None
 
     def getCurrentTake(self):
-        if(self.take_num == 0):
-            return "1"
-        else:
-            return str(self.take_num+1)
+        return str(self.take_num + 1)
 
     def retrieveBinary(self):
-        #Ensure we have samples in the chopnet
-        if(self.record.clip().numSamples()>1):
-            # 1 = binary, 0 = str.
-            clip_data = self.record.clipData(1) 
-            return clip_data
-        else:
-            return None
+        if self.record.clip().numSamples() > 1:
+            return self.record.clipData(True)
+        return None
 
     def saveTake(self):
-        #Make the file directory.
-
-        if(self.restart_switch==0 or self.take_num == 0):
+        if not self.restart_switch or not self.take_num:
             self.take_num += 1
-            
-        save_file = self.file_dir + self.slate_name + "/" + "take_" + str(self.take_num) + FILE_EXT
-        save_dir = self.file_dir + self.slate_name + "/"
 
-        if(os.path.isdir(save_dir) == False):
-            os.makedirs(save_dir)
-
-        self.record.saveClip(save_file)
+        save_dir = os.path.join(self.file_dir, self.slate_name)
+        os.makedirs(save_dir, exist_ok=True)
+        self.record.saveClip(os.path.join(save_dir, f"take_{self.take_num}{FILE_EXT}"))
         self.take_signal.emit(self.getCurrentTake())
 
     def loadTake(self, provided=""):
         if hou.playbar.isPlaying():
             hou.playbar.stop()
 
-        if(provided==""):
-            if(os.path.isdir(self.file_dir) == False):
-                load_dir = hou.text.expandString("$HIP")
-            else:
-                load_dir = self.file_dir
-
-            selection = hou.ui.selectFile(start_directory=load_dir, file_type = hou.fileType.Clip)
-            self.load_and_emit(selection)
-        else:
+        if provided:
             self.load_and_emit(provided)
+            return
+
+        load_dir = self.file_dir if os.path.isdir(self.file_dir) else hou.text.expandString("$HIP")
+        selection = hou.ui.selectFile(start_directory=load_dir, file_type=hou.fileType.Clip)
+        self.load_and_emit(selection)
 
     def load_and_emit(self, file_path):
-        if(file_path != "" and os.path.exists(file_path) == True):
-            self.file_load.parm('file').set(file_path)
-            self.switch_node.parm('index').set(1)
-
-            file_construct = file_path.split("/")[-2:]
-            file_name = file_construct[1].split(".")[0]
-            take_num = str([int(s) for s in file_name if s.isdigit()][0])
-            take_name = file_construct[0]
-
-            #Play back the take.
-            hou.playbar.setPlayMode(hou.playMode.Once)
-            hou.playbar.setRealTime(True)
-            hou.playbar.play()
-            self.load_signal.emit(take_name + "_" + take_num)
-
-        else:
+        file_path = hou.text.expandString(file_path)
+        if not file_path or not os.path.isfile(file_path):
             hou.ui.displayMessage("Please make a valid selection.")
+            return
 
+        self.file_load.parm("file").set(file_path)
+        self.switch_node.parm("index").set(1)
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        take_num = file_name.removeprefix("take_")
+        take_name = os.path.basename(os.path.dirname(file_path))
+        hou.playbar.setPlayMode(hou.playMode.Once)
+        hou.playbar.setRealTime(True)
+        hou.playbar.play()
+        self.load_signal.emit(f"{take_name}_{take_num}")
 
     def getCamera(self):
-        if(self.rec_cam):
-            return self.rec_cam
-        else:
-            return None
-
-
-
-
-
-
-
-
-
-    
-
-
+        return self.rec_cam
