@@ -1,27 +1,25 @@
 # VR-Houdini-Camera
-Houdini Utility to stream and record VR Input from HMD or Controllers to a viewport camera. Implements a slating system, SceneViewer overlay countdown, and playback of recorded clips to the viewport. Includes simple utility for transferring .bclip data over sockets to other Houdini sessions on the local network.
+
+Houdini 22 utility to stream and record VR HMD/controller input to a viewport camera. It includes slate and recording overlays, clip playback, and local-network `.bclip` transfer.
 
 This project utilizes cmbrun's amazing [pyopenxr](https://github.com/cmbruns/pyopenxr) and [pyopenvr](https://github.com/cmbruns/pyopenvr) libraries.
 
-Tested with the HTC Vive HMD + Vive Tracker
+Requires Houdini 22 (Python 3.11+) and PySide6. Tested with an HTC Vive HMD and Vive Tracker.
 
-## Example Footage:
+## Example Footage
 
 https://user-images.githubusercontent.com/73495888/190064860-77a33d7d-43a3-450f-9cdf-5c366252e007.mp4
 
 ## Installation
-* Copy the "VR_Houdini_Camera.json" package file to $HOME/houdini19.5/packages and edit the path to point to root folder of VR Houdini Camera.
-* Install the necessary python libraries with `pip install -r requirements.txt`
-* Ensure your VR Devices are enabled and tracking.
 
-### Tips:
-* Disable SteamVR Home for improved performance. Make sure to Enable Developer Settings on the SteamVR settings to do this.
+1. Copy `VR_Houdini_Camera.json` to `$HOME/houdini22.0/packages` and set `VR_CAM` to this repository's absolute path.
+2. Install dependencies with Houdini's Python: `hython -m pip install -r /path/to/VR-Houdini-Camera/requirements.txt`.
+3. Enable and track your VR devices.
+
+The package adds the repository root to Houdini's path, registering both its Python scripts and `viewer_states/follow_focus.py`.
 
 ## Usage
-* Record VR Input from HMD or Controllers directly to a Houdini Viewport Camera.
-* Qt Viewport Overlays with countdown and recording overlay indicating shot length.
-* Keep track of shots with Slate Names and Take Numbers.
-* Options to playback last shot and load .bclip files from disk.
-* Transmit recordings to other Houdini sessions on the local network in the Transmit tab.
-* Stream camera position over local network sockets to Houdini Session.
 
+Choose **VR Camera - Record and Transmit** from the Windows menu. Record VR input directly to a viewport camera, label takes with slates, replay clips, or send recordings and camera positions to another local Houdini session.
+
+Tip: disable SteamVR Home for improved performance (enable SteamVR Developer Settings first).

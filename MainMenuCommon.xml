@@ -8,10 +8,8 @@
 				<insertAfter>windows_menu_sep_4</insertAfter>
 				<scriptCode>
 				<![CDATA[
-import main_socket_window as mainWindow
-from importlib import reload
-reload(mainWindow)
-mainWindow.initializeWindow()]]>
+import main_socket_window
+main_socket_window.initializeWindow()]]>
 				</scriptCode>
 			</scriptItem>
 		</subMenu>

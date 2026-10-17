@@ -1,20 +1,11 @@
-from PySide2.QtCore import QThread, Signal
-import time
-import socket
 import pickle
-import hou
-import platform
-import os
+import socket
+
+from PySide6.QtCore import QThread, Signal
 
 SOCKET_PORT = 13290
 HEADERSIZE = 15
-
-if platform.system() == "Darwin":
-    process = os.popen('ipconfig getifaddr en0')
-    SERVER = process.read()
-    process.close()
-else:
-    SERVER = socket.gethostbyname(socket.gethostname())
+SERVER = "0.0.0.0"
 
 class QSocketMonitor(QThread):
 
@@ -24,57 +15,73 @@ class QSocketMonitor(QThread):
     Instance = []
 
     def __init__(self):
-        QThread.__init__(self)
+        super().__init__()
         QSocketMonitor.Instance.append(self)
-        self.TotalData=b""
-        print(SERVER)
-
-    def __del__(self):
-        self.quit()
-        self.wait()
+        self.run_time = True
 
     def stop(self):
-        self.terminate()
+        self.run_time = False
+        self.requestInterruption()
+
+    def _receive_data(self, client):
+        chunks = []
+        client.settimeout(0.2)
+        while self.run_time and not self.isInterruptionRequested():
+            try:
+                data = client.recv(4096)
+            except socket.timeout:
+                continue
+            if not data:
+                return b"".join(chunks)
+            chunks.append(data)
+        return b""
+
+    def _dispatch_data(self, data, address):
+        if len(data) < HEADERSIZE:
+            raise ValueError("incomplete socket header")
+
+        header = data[:HEADERSIZE].decode("utf-8").strip()
+        payload = data[HEADERSIZE:]
+        if header and header != "normal_send":
+            take_num, separator, slate_name = header.partition(".")
+            if not separator:
+                raise ValueError("invalid bclip header")
+            self.ChopsCall.emit((take_num, slate_name, payload))
+            return
+
+        message = pickle.loads(payload)
+        if message == "status_ping":
+            self.ButtonCall.emit(f"{address[0]}:{address[1]}")
+        elif message == "shutdown!":
+            self.stop()
+        else:
+            self.DataCall.emit(message)
 
     def run(self):
-        #time.sleep(0.025)
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind((SERVER.strip(), SOCKET_PORT))
-            print(SOCKET_PORT)
-            print(SERVER.strip())
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+                server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                server.bind((SERVER, SOCKET_PORT))
+                server.listen(5)
+                server.settimeout(0.2)
 
-            while True:
-                s.listen(5)
-                client, address = s.accept()
-                data = ""
-                data = client.recv(4096)
-                if data != "":
-                    self.TotalData = b""
-                    self.TotalData += data
-                    while True:
-                        data = client.recv(4096)
-                        if data : self.TotalData += data
-                        else : break
+                while self.run_time and not self.isInterruptionRequested():
+                    try:
+                        client, address = server.accept()
+                    except socket.timeout:
+                        continue
 
-                    decode_msg = self.TotalData[:HEADERSIZE]
-                    header_info = decode_msg.decode("utf-8").strip()
-
-                    if(header_info != "normal_send" and len(header_info)>0):
-                        take_num = header_info.split(".")[0]
-                        slate_name = header_info.split(".")[1]
-                        chops_binary = self.TotalData[HEADERSIZE:]
-                        binary_info = (take_num, slate_name, chops_binary)
-                        self.ChopsCall.emit(binary_info)
-                    else:
-                        inc_msg = pickle.loads(self.TotalData[HEADERSIZE:])
-                        if inc_msg == "status_ping":
-                            self.ButtonCall.emit(address[0] + ":" + str(address[1]))
-                        elif inc_msg == "shutdown!":
-                            break
-                        else:
-                            self.DataCall.emit(inc_msg)
-        except socket.error as emsg:
-            print(emsg)
-
-
+                    with client:
+                        data = self._receive_data(client)
+                    if not data:
+                        continue
+                    try:
+                        self._dispatch_data(data, address)
+                    except (EOFError, UnicodeDecodeError, ValueError, pickle.UnpicklingError) as error:
+                        print(f"Ignoring malformed socket message: {error}")
+        except OSError as error:
+            if self.run_time:
+                print(f"Socket listener stopped: {error}")
+        finally:
+            if self in QSocketMonitor.Instance:
+                QSocketMonitor.Instance.remove(self)
